@@ -128,3 +128,55 @@
   .statsRow { grid-template-columns: 1fr; }
   .header { flex-direction: column; align-items: flex-start; }
 }
+
+/* Courses (read-only) */
+.readOnlyBanner { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: rgba(59,130,246,0.06); border: 1px solid rgba(59,130,246,0.15); border-radius: var(--radius-sm); font-size: 0.78rem; color: var(--text-muted); margin-bottom: 16px; }
+.readOnlyBanner svg { color: var(--accent); flex-shrink: 0; }
+.courseGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.courseCard { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 16px; display: flex; flex-direction: column; gap: 8px; transition: border-color 0.15s; }
+.courseCard:hover { border-color: var(--border-light); }
+.courseCardTop { display: flex; align-items: center; gap: 8px; }
+.courseCode { font-family: var(--font-display); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.1em; color: var(--success); background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.2); padding: 2px 8px; border-radius: 4px; }
+.courseType { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; color: var(--accent); background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2); padding: 2px 7px; border-radius: 4px; letter-spacing: 0.05em; }
+.courseName { font-family: var(--font-display); font-size: 0.95rem; font-weight: 700; color: var(--text-primary); }
+.courseDesc { font-size: 0.78rem; color: var(--text-muted); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.courseDetails { display: flex; gap: 12px; flex-wrap: wrap; font-size: 0.75rem; color: var(--text-muted); }
+.currentBatch { font-size: 0.75rem; color: var(--gold); background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2); padding: 3px 10px; border-radius: 4px; align-self: flex-start; }
+.courseChair { display: flex; align-items: center; gap: 5px; font-size: 0.75rem; color: var(--text-muted); padding-top: 6px; border-top: 1px solid var(--border); }
+.courseChair svg { color: var(--gold); }
+.courseChair strong { color: var(--text-secondary); }
+.coordCount { font-size: 0.72rem; color: var(--text-muted); }
+
+/* Dept action buttons */
+.deptActions { display: flex; gap: 5px; }
+.viewDeptBtn { display:flex; align-items:center; padding:5px 9px; border-radius:var(--radius-sm); background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.2); color:var(--accent); cursor:pointer; transition:all 0.15s; }
+.viewDeptBtn:hover { background:rgba(59,130,246,0.15); }
+.editDeptBtn { display:flex; align-items:center; padding:5px 9px; border-radius:var(--radius-sm); background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.2); color:var(--gold); cursor:pointer; transition:all 0.15s; }
+.editDeptBtn:hover { background:rgba(245,158,11,0.15); }
+.deptFooter { margin-top:8px; padding-top:8px; border-top:1px solid var(--border); display:flex; gap:10px; }
+.deptStat { font-size:0.72rem; color:var(--text-muted); }
+.editTag { display:inline-block; font-size:0.6rem; font-weight:800; letter-spacing:0.08em; color:var(--gold); background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.2); padding:1px 6px; border-radius:4px; margin-right:7px; }
+.formSection { display:flex; flex-direction:column; gap:12px; }
+.formSectionTitle { display:flex; align-items:center; gap:7px; font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-muted); }
+
+/* View dept modal */
+.viewModal { width:100%; max-width:640px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); box-shadow:0 24px 60px rgba(0,0,0,0.5); animation:fadeIn 0.2s ease both; max-height:85vh; overflow-y:auto; }
+.viewModalHeader { display:flex; align-items:flex-start; justify-content:space-between; padding:24px 24px 16px; border-bottom:1px solid var(--border); }
+.viewModalTitle { font-family:var(--font-display); font-size:1.2rem; font-weight:700; color:var(--text-primary); margin-top:6px; }
+.viewChairRow { display:flex; align-items:center; gap:14px; padding:16px 24px; background:var(--bg-secondary); border-bottom:1px solid var(--border); }
+.viewChairAvatar { width:44px; height:44px; border-radius:50%; background:linear-gradient(135deg,var(--gold),#d97706); color:#000; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1.1rem; font-family:var(--font-display); flex-shrink:0; }
+.viewChairName { font-weight:700; color:var(--text-primary); font-size:0.95rem; }
+.viewChairEmail { font-size:0.75rem; color:var(--text-muted); }
+.viewChairRole { font-size:0.65rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--gold); margin-top:2px; }
+.viewCoursesSection { padding:20px 24px; display:flex; flex-direction:column; gap:14px; }
+.viewSectionTitle { font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-muted); margin-bottom:4px; }
+.viewEmpty { font-size:0.85rem; color:var(--text-muted); text-align:center; padding:20px; }
+.viewCourseCard { background:var(--bg-secondary); border:1px solid var(--border); border-radius:var(--radius-sm); padding:14px; display:flex; flex-direction:column; gap:10px; }
+.viewCourseTop { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.viewCourseName { font-weight:700; color:var(--text-primary); font-size:0.95rem; }
+.viewCourseStats { display:flex; gap:14px; flex-wrap:wrap; font-size:0.75rem; color:var(--text-muted); }
+.viewCoordList { display:flex; flex-wrap:wrap; gap:8px; padding-top:8px; border-top:1px solid var(--border); }
+.viewCoordItem { display:flex; align-items:center; gap:7px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-sm); padding:5px 10px; }
+.viewCoordAvatar { width:22px; height:22px; border-radius:50%; background:rgba(16,185,129,0.2); color:var(--success); display:flex; align-items:center; justify-content:center; font-size:0.65rem; font-weight:700; flex-shrink:0; }
+.viewCoordName { font-size:0.775rem; font-weight:600; color:var(--text-primary); }
+.viewCoordSub { font-size:0.68rem; color:var(--text-muted); }

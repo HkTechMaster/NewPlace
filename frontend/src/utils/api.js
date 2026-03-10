@@ -9,19 +9,14 @@ export const skillFacultyAPI = {
 };
 
 export const departmentAPI = {
-  // Dean adds directly
   addDirect: (data) => axios.post('/departments/direct', data),
-  // Super admin sends request to dean
+  editDirect: (facultyId, deptIndex, data) => axios.put(`/departments/direct/${facultyId}/${deptIndex}`, data),
   sendRequest: (data) => axios.post('/departments/request', data),
-  // Dean fetches requests for their faculty
+  sendEditRequest: (data) => axios.post('/departments/edit-request', data),
   getRequests: () => axios.get('/departments/requests'),
-  // Super admin sees all sent requests
   getAllRequests: () => axios.get('/departments/requests/all'),
-  // Dean approves
   approve: (id) => axios.put(`/departments/requests/${id}/approve`),
-  // Dean rejects
   reject: (id, reason) => axios.put(`/departments/requests/${id}/reject`, { reason }),
-  // Dean deletes dept
   deleteDept: (facultyId, deptIndex) => axios.delete(`/departments/${facultyId}/${deptIndex}`),
 };
 
@@ -32,8 +27,16 @@ export const courseAPI = {
   delete: (id) => axios.delete(`/courses/${id}`),
 };
 
+export const studentAPI = {
+  getPending: () => axios.get('/students/pending'),
+  getAll: () => axios.get('/students'),
+  getByCourse: () => axios.get('/students/by-course'),
+  getById: (id) => axios.get(`/students/${id}`),
+  approve: (id) => axios.put(`/students/${id}/approve`),
+  reject: (id, reason) => axios.put(`/students/${id}/reject`, { reason }),
+};
+
 export const usersAPI = {
   getDeans: () => axios.get('/users/deans'),
   getStats: () => axios.get('/users/stats'),
-  toggleStatus: (id) => axios.put(`/users/${id}/toggle-status`),
 };
