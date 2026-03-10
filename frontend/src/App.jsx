@@ -5,6 +5,8 @@ import { ProtectedRoute, PublicRoute } from './components/ProtectedRoute';
 import Login from './pages/Login';
 import AdminDashboard from './pages/AdminDashboard';
 import DeanDashboard from './pages/DeanDashboard';
+import ChairpersonDashboard from './pages/ChairpersonDashboard';
+import CoordinatorDashboard from './pages/CoordinatorDashboard';
 
 export default function App() {
   return (
@@ -12,43 +14,24 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
 
-        <Route
-          path="/login"
-          element={
-            <PublicRoute>
-              <Login />
-            </PublicRoute>
-          }
-        />
+        <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
 
-        <Route
-          path="/admin/dashboard"
-          element={
-            <ProtectedRoute requiredRole="super_admin">
-              <AdminDashboard />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/admin/dashboard" element={
+          <ProtectedRoute requiredRole="super_admin"><AdminDashboard /></ProtectedRoute>
+        } />
 
-        <Route
-          path="/dean/dashboard"
-          element={
-            <ProtectedRoute requiredRole="dean">
-              <DeanDashboard />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/dean/dashboard" element={
+          <ProtectedRoute requiredRole="dean"><DeanDashboard /></ProtectedRoute>
+        } />
 
-        <Route
-          path="/chairperson/dashboard"
-          element={
-            <ProtectedRoute requiredRole="chairperson">
-              <ChairpersonDashboard />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/chairperson/dashboard" element={
+          <ProtectedRoute requiredRole="chairperson"><ChairpersonDashboard /></ProtectedRoute>
+        } />
 
-        {/* Fallback */}
+        <Route path="/coordinator/dashboard" element={
+          <ProtectedRoute requiredRole="coordinator"><CoordinatorDashboard /></ProtectedRoute>
+        } />
+
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </AuthProvider>

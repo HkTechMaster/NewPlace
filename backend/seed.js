@@ -1,124 +1,72 @@
-/**
- * SEED SCRIPT - Run once to set up Super Admin
- * Usage: node seed.js
- * 
- * Make sure your .env file is configured with MONGODB_URI and SUPER_ADMIN_EMAIL
- */
-
 require('dotenv').config();
 const mongoose = require('mongoose');
+
 const User = require('./models/User');
+const Dean = require('./models/Dean');
+const Chairperson = require('./models/Chairperson');
+const Coordinator = require('./models/Coordinator');
 const SkillFaculty = require('./models/SkillFaculty');
+const Course = require('./models/Course');
+const DepartmentRequest = require('./models/DepartmentRequest');
 
-const connectDB = async () => {
-  await mongoose.connect(process.env.MONGODB_URI);
-  console.log('✅ Connected to MongoDB Atlas');
-};
-
-const seedData = async () => {
+const seed = async () => {
   try {
-    await connectDB();
+    await mongoose.connect(process.env.MONGODB_URI);
+    console.log('✅ Connected to MongoDB\n');
 
-    // ─── 1. Create or verify Super Admin ───────────────────────────────────
-    const superAdminEmail = process.env.SUPER_ADMIN_EMAIL || 'hiteshkhutela@gmail.com';
+    // ── WIPE ALL COLLECTIONS ──────────────────────────────
+    console.log('🗑️  Clearing all collections...');
+    await Promise.all([
+      User.deleteMany({}),
+      Dean.deleteMany({}),
+      Chairperson.deleteMany({}),
+      Coordinator.deleteMany({}),
+      SkillFaculty.deleteMany({}),
+      Course.deleteMany({}),
+      DepartmentRequest.deleteMany({}),
+    ]);
+    console.log('✅ All collections cleared\n');
 
-    let superAdmin = await User.findOne({ email: superAdminEmail });
+    // ── SUPER ADMIN ───────────────────────────────────────
+    const superAdmin = await User.create({
+      name: 'Super Admin',
+      email: process.env.SUPER_ADMIN_EMAIL,
+      role: 'super_admin',
+    });
+    console.log(`✅ Super Admin created: ${superAdmin.email}`);
 
-    if (!superAdmin) {
-      superAdmin = await User.create({
-        name: 'Super Admin',
-        email: superAdminEmail,
-        role: 'super_admin',
-        isActive: true,
-      });
-      console.log(`✅ Super Admin created: ${superAdminEmail}`);
-    } else {
-      console.log(`ℹ️  Super Admin already exists: ${superAdminEmail}`);
-    }
+    // ── SKILL FACULTY + DEAN ──────────────────────────────
+    const faculty = await SkillFaculty.create({
+      code: 'SFET',
+      name: 'Skill Faculty of Engineering & Technology',
+      description: 'Engineering and Technology programs',
+      deanName: 'Dr. Ramesh Kumar',
+      deanEmail: 'dean.sfet@institution.edu',
+    });
 
-    // ─── 2. Create sample Skill Faculties (optional) ───────────────────────
-    const sampleFaculties = [
-      {
-        code: 'SFET',
-        name: 'Skill Faculty of Engineering & Technology',
-        description: 'Covers engineering disciplines including Computer Science, Mechanical, Electrical, and Civil Engineering.',
-        deanName: 'Dr. Rajesh Kumar',
-        deanEmail: 'dean.sfet@placement.edu',
-        establishedYear: 2015,
-        departments: [
-          { name: 'Computer Science & Engineering', code: 'CSE' },
-          { name: 'Mechanical Engineering', code: 'ME' },
-          { name: 'Electrical Engineering', code: 'EE' },
-        ],
-      },
-      {
-        code: 'SFASH',
-        name: 'Skill Faculty of Arts, Science & Humanities',
-        description: 'Covers liberal arts, natural sciences, social sciences, and humanities programs.',
-        deanName: 'Dr. Priya Sharma',
-        deanEmail: 'dean.sfash@placement.edu',
-        establishedYear: 2016,
-        departments: [
-          { name: 'Physics', code: 'PHY' },
-          { name: 'Chemistry', code: 'CHEM' },
-          { name: 'Mathematics', code: 'MATH' },
-        ],
-      },
-      {
-        code: 'SFMSR',
-        name: 'Skill Faculty of Management, Social Science & Research',
-        description: 'Covers business management, social science research, and MBA programs.',
-        deanName: 'Dr. Amit Verma',
-        deanEmail: 'dean.sfmsr@placement.edu',
-        establishedYear: 2017,
-        departments: [
-          { name: 'Business Administration', code: 'MBA' },
-          { name: 'Economics', code: 'ECO' },
-          { name: 'Sociology', code: 'SOC' },
-        ],
-      },
-    ];
+    const dean = await Dean.create({
+      name: 'Dr. Ramesh Kumar',
+      email: 'dean.sfet@institution.edu',
+      skillFaculty: faculty._id,
+    });
+    faculty.dean = dean._id;
+    await faculty.save();
 
-    for (const facultyData of sampleFaculties) {
-      const existing = await SkillFaculty.findOne({ code: facultyData.code });
-      if (!existing) {
-        // Create dean user
-        let deanUser = await User.findOne({ email: facultyData.deanEmail });
-        if (!deanUser) {
-          deanUser = await User.create({
-            name: facultyData.deanName,
-            email: facultyData.deanEmail,
-            role: 'dean',
-          });
-        }
+    console.log(`✅ Dean created: ${dean.email}`);
+    console.log(`✅ Skill Faculty created: ${faculty.code}\n`);
+    console.log('📋 Summary:');
+    console.log('   Collection: users       → 1 super admin');
+    console.log('   Collection: deans       → 1 dean');
+    console.log('   Collection: chairpersons → 0 (add via dashboard)');
+    console.log('   Collection: coordinators → 0 (add via courses)');
+    console.log('   Collection: courses      → 0 (add via chairperson dashboard)');
+    console.log('\n🎉 Seed complete! Login with your Super Admin Google account.\n');
 
-        const faculty = await SkillFaculty.create({
-          ...facultyData,
-          dean: deanUser._id,
-          contactEmail: facultyData.deanEmail,
-        });
-
-        deanUser.skillFaculty = faculty._id;
-        await deanUser.save();
-
-        console.log(`✅ Created Skill Faculty: ${facultyData.code} - ${facultyData.name}`);
-      } else {
-        console.log(`ℹ️  Skill Faculty already exists: ${facultyData.code}`);
-      }
-    }
-
-    console.log('\n🎉 Seed completed successfully!');
-    console.log('\n📋 Login Instructions:');
-    console.log(`   Super Admin: Sign in with Google using ${superAdminEmail}`);
-    console.log('   Deans: Sign in with Google using their registered email\n');
-
-  } catch (error) {
-    console.error('❌ Seed error:', error);
-  } finally {
-    await mongoose.connection.close();
-    console.log('MongoDB connection closed.');
     process.exit(0);
+  } catch (err) {
+    console.error('❌ Seed error:', err.message);
+    process.exit(1);
   }
 };
 
-seedData();
+seed();
