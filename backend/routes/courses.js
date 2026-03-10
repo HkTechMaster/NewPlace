@@ -1,73 +1,59 @@
 const express = require('express');
 const router = express.Router();
 const Course = require('../models/Course');
-const User = require('../models/User');
+const Coordinator = require('../models/Coordinator');
 const { protect } = require('../middleware/auth');
 
-// @route  GET /api/courses
-// @desc   Get courses (filtered by chairperson's faculty/dept)
-// @access Chairperson / Dean / SuperAdmin
+// GET courses
 router.get('/', protect, async (req, res) => {
   try {
     let filter = {};
-    if (req.user.role === 'chairperson') {
-      filter = { chairperson: req.user._id };
-    } else if (req.user.role === 'dean') {
+    if (req.user.role === 'chairperson') filter = { chairperson: req.user._id };
+    else if (req.user.role === 'dean') {
       const facultyId = req.user.skillFaculty?._id || req.user.skillFaculty;
       filter = { skillFaculty: facultyId };
     }
     const courses = await Course.find(filter)
-      .populate('chairperson', 'name email')
+      .populate('chairperson', 'name email departmentCode departmentName')
       .populate('skillFaculty', 'name code')
-      .populate('coordinators.user', 'name email')
+      .populate('coordinators.coordinator', 'name email')
       .sort({ createdAt: -1 });
     res.json({ success: true, count: courses.length, courses });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-// @route  POST /api/courses
-// @desc   Chairperson creates a course
-// @access Chairperson only
+// POST create course — chairperson only
 router.post('/', protect, async (req, res) => {
   try {
-    if (req.user.role !== 'chairperson') {
-      return res.status(403).json({ success: false, message: 'Only chairpersons can create courses' });
-    }
+    if (req.user.role !== 'chairperson') return res.status(403).json({ success: false, message: 'Chairperson only' });
 
-    const {
-      name, code, durationYears, durationLabel, totalBatches,
-      currentBatch, totalSeats, description, type, coordinators
-    } = req.body;
-
-    if (!name) return res.status(400).json({ success: false, message: 'Course name is required' });
+    const { name, code, durationYears, durationLabel, totalBatches, currentBatch, totalSeats, description, type, coordinators } = req.body;
+    if (!name) return res.status(400).json({ success: false, message: 'Course name required' });
 
     const facultyId = req.user.skillFaculty?._id || req.user.skillFaculty;
 
-    // Register coordinators as users
-    const processedCoordinators = [];
+    // Register coordinators in coordinators collection
+    const processedCoords = [];
     for (const coord of (coordinators || [])) {
-      const entry = { name: coord.name, email: coord.email, subject: coord.subject || '' };
+      const entry = { name: coord.name, email: coord.email?.toLowerCase(), subject: coord.subject || '' };
       if (coord.email) {
-        let coordUser = await User.findOne({ email: coord.email.toLowerCase() });
-        if (!coordUser) {
-          coordUser = await User.create({
+        let coordDoc = await Coordinator.findOne({ email: coord.email.toLowerCase() });
+        if (!coordDoc) {
+          coordDoc = await Coordinator.create({
             name: coord.name || 'Coordinator',
             email: coord.email.toLowerCase(),
-            role: 'coordinator',
             skillFaculty: facultyId,
             departmentCode: req.user.departmentCode,
+            subject: coord.subject || '',
           });
-        } else if (coordUser.role !== 'super_admin' && coordUser.role !== 'dean') {
-          coordUser.role = 'coordinator';
-          coordUser.skillFaculty = facultyId;
-          coordUser.isActive = true;
-          await coordUser.save();
+        } else {
+          coordDoc.skillFaculty = facultyId;
+          coordDoc.isActive = true;
+          await coordDoc.save();
         }
-        entry.user = coordUser._id;
+        entry.coordinator = coordDoc._id;
       }
-      processedCoordinators.push(entry);
+      processedCoords.push(entry);
     }
 
     const course = await Course.create({
@@ -75,6 +61,7 @@ router.post('/', protect, async (req, res) => {
       code: code?.toUpperCase() || '',
       skillFaculty: facultyId,
       departmentCode: req.user.departmentCode,
+      departmentName: req.user.departmentName,
       chairperson: req.user._id,
       duration: { years: durationYears || 1, label: durationLabel || `${durationYears || 1} Year` },
       totalBatches: totalBatches || 1,
@@ -82,66 +69,48 @@ router.post('/', protect, async (req, res) => {
       totalSeats: totalSeats || 0,
       description: description || '',
       type: type || 'fulltime',
-      coordinators: processedCoordinators,
+      coordinators: processedCoords,
     });
 
     const populated = await Course.findById(course._id)
       .populate('chairperson', 'name email')
       .populate('skillFaculty', 'name code');
 
-    res.status(201).json({
-      success: true,
-      message: `Course "${name}" created! Coordinators can now login with Google.`,
-      course: populated,
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: error.message });
-  }
+    res.status(201).json({ success: true, message: `Course "${name}" created! Coordinators registered.`, course: populated });
+  } catch (e) { console.error(e); res.status(500).json({ success: false, message: e.message }); }
 });
 
-// @route  PUT /api/courses/:id
-// @desc   Update a course
-// @access Chairperson only (their own)
+// PUT update
 router.put('/:id', protect, async (req, res) => {
   try {
-    if (req.user.role !== 'chairperson') {
-      return res.status(403).json({ success: false, message: 'Only chairpersons can update courses' });
-    }
+    if (req.user.role !== 'chairperson') return res.status(403).json({ success: false, message: 'Chairperson only' });
     const course = await Course.findById(req.params.id);
-    if (!course) return res.status(404).json({ success: false, message: 'Course not found' });
-    if (course.chairperson.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ success: false, message: 'Not your course' });
-    }
+    if (!course) return res.status(404).json({ success: false, message: 'Not found' });
+    if (course.chairperson.toString() !== req.user._id.toString()) return res.status(403).json({ success: false, message: 'Not your course' });
 
-    const {
-      name, code, durationYears, durationLabel, totalBatches,
-      currentBatch, totalSeats, description, type, coordinators, isActive
-    } = req.body;
-
+    const { name, code, durationYears, durationLabel, totalBatches, currentBatch, totalSeats, description, type, coordinators, isActive } = req.body;
     const facultyId = req.user.skillFaculty?._id || req.user.skillFaculty;
 
-    // Re-process coordinators
     if (coordinators) {
-      const processedCoordinators = [];
+      const processedCoords = [];
       for (const coord of coordinators) {
-        const entry = { name: coord.name, email: coord.email, subject: coord.subject || '' };
+        const entry = { name: coord.name, email: coord.email?.toLowerCase(), subject: coord.subject || '' };
         if (coord.email) {
-          let coordUser = await User.findOne({ email: coord.email.toLowerCase() });
-          if (!coordUser) {
-            coordUser = await User.create({
+          let coordDoc = await Coordinator.findOne({ email: coord.email.toLowerCase() });
+          if (!coordDoc) {
+            coordDoc = await Coordinator.create({
               name: coord.name || 'Coordinator',
               email: coord.email.toLowerCase(),
-              role: 'coordinator',
               skillFaculty: facultyId,
               departmentCode: req.user.departmentCode,
+              subject: coord.subject || '',
             });
           }
-          entry.user = coordUser._id;
+          entry.coordinator = coordDoc._id;
         }
-        processedCoordinators.push(entry);
+        processedCoords.push(entry);
       }
-      course.coordinators = processedCoordinators;
+      course.coordinators = processedCoords;
     }
 
     if (name) course.name = name;
@@ -157,29 +126,19 @@ router.put('/:id', protect, async (req, res) => {
     await course.save();
     const updated = await Course.findById(course._id).populate('chairperson', 'name email').populate('skillFaculty', 'name code');
     res.json({ success: true, message: 'Course updated', course: updated });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-// @route  DELETE /api/courses/:id
-// @desc   Delete a course
-// @access Chairperson only
+// DELETE
 router.delete('/:id', protect, async (req, res) => {
   try {
-    if (req.user.role !== 'chairperson') {
-      return res.status(403).json({ success: false, message: 'Only chairpersons can delete courses' });
-    }
+    if (req.user.role !== 'chairperson') return res.status(403).json({ success: false, message: 'Chairperson only' });
     const course = await Course.findById(req.params.id);
-    if (!course) return res.status(404).json({ success: false, message: 'Course not found' });
-    if (course.chairperson.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ success: false, message: 'Not your course' });
-    }
+    if (!course) return res.status(404).json({ success: false, message: 'Not found' });
+    if (course.chairperson.toString() !== req.user._id.toString()) return res.status(403).json({ success: false, message: 'Not your course' });
     await course.deleteOne();
     res.json({ success: true, message: 'Course deleted' });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
 module.exports = router;

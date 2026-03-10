@@ -2,258 +2,238 @@ const express = require('express');
 const router = express.Router();
 const DepartmentRequest = require('../models/DepartmentRequest');
 const SkillFaculty = require('../models/SkillFaculty');
-const User = require('../models/User');
-const { protect, superAdminOnly } = require('../middleware/auth');
+const Chairperson = require('../models/Chairperson');
+const { protect } = require('../middleware/auth');
 
-// ─── DEAN: Add department directly to their faculty ──────────────────────────
+// Helper: register chairperson
+const registerChairperson = async (dept, facultyId) => {
+  if (!dept.chairpersonEmail) return null;
+  let chair = await Chairperson.findOne({ email: dept.chairpersonEmail });
+  if (!chair) {
+    chair = await Chairperson.create({
+      name: dept.chairpersonName || 'Chairperson',
+      email: dept.chairpersonEmail,
+      skillFaculty: facultyId,
+      departmentCode: dept.code || dept.name,
+      departmentName: dept.name,
+    });
+  } else {
+    chair.skillFaculty = facultyId;
+    chair.departmentCode = dept.code || dept.name;
+    chair.departmentName = dept.name;
+    chair.isActive = true;
+    await chair.save();
+  }
+  return chair._id;
+};
 
-// @route  POST /api/departments/direct
-// @desc   Dean adds a department directly (no approval needed)
-// @access Dean only
+// Dean adds department directly (no approval)
 router.post('/direct', protect, async (req, res) => {
   try {
-    if (req.user.role !== 'dean') {
-      return res.status(403).json({ success: false, message: 'Only deans can use this route' });
-    }
-
+    if (req.user.role !== 'dean') return res.status(403).json({ success: false, message: 'Dean only' });
     const { name, code, chairpersonName, chairpersonEmail } = req.body;
-    if (!name) return res.status(400).json({ success: false, message: 'Department name is required' });
+    if (!name) return res.status(400).json({ success: false, message: 'Name required' });
 
-    const facultyId = req.user.skillFaculty._id || req.user.skillFaculty;
+    const facultyId = req.user.skillFaculty?._id || req.user.skillFaculty;
     const faculty = await SkillFaculty.findById(facultyId);
     if (!faculty) return res.status(404).json({ success: false, message: 'Faculty not found' });
 
-    // Check duplicate code
     if (code && faculty.departments.some(d => d.code?.toUpperCase() === code.toUpperCase())) {
-      return res.status(400).json({ success: false, message: `Department code "${code}" already exists in this faculty` });
+      return res.status(400).json({ success: false, message: `Code "${code}" already exists` });
     }
 
-    const deptEntry = { name, code: code?.toUpperCase() || '', chairpersonName: chairpersonName || '', chairpersonEmail: chairpersonEmail?.toLowerCase() || '' };
+    const dept = { name, code: code?.toUpperCase() || '', chairpersonName: chairpersonName || '', chairpersonEmail: chairpersonEmail?.toLowerCase() || '' };
+    const chairId = await registerChairperson(dept, facultyId);
+    if (chairId) dept.chairperson = chairId;
 
-    // Register chairperson as user if email provided
-    if (chairpersonEmail) {
-      let chair = await User.findOne({ email: chairpersonEmail.toLowerCase() });
-      if (!chair) {
-        chair = await User.create({
-          name: chairpersonName || 'Chairperson',
-          email: chairpersonEmail.toLowerCase(),
-          role: 'chairperson',
-          skillFaculty: facultyId,
-          departmentCode: code || name,
-        });
-      } else {
-        chair.role = 'chairperson';
-        chair.skillFaculty = facultyId;
-        chair.departmentCode = code || name;
-        chair.isActive = true;
-        await chair.save();
-      }
-      deptEntry.chairperson = chair._id;
-    }
-
-    faculty.departments.push(deptEntry);
+    faculty.departments.push(dept);
     await faculty.save();
-
-    res.status(201).json({ success: true, message: `Department "${name}" added successfully!`, faculty });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
+    res.status(201).json({ success: true, message: `"${name}" added!`, faculty });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-// ─── SUPER ADMIN: Send department request to dean ─────────────────────────────
-
-// @route  POST /api/departments/request
-// @desc   Super Admin sends a department add request to a faculty dean
-// @access Super Admin only
-router.post('/request', protect, superAdminOnly, async (req, res) => {
+// Super admin sends request to dean
+router.post('/request', protect, async (req, res) => {
   try {
+    if (req.user.role !== 'super_admin') return res.status(403).json({ success: false, message: 'Super Admin only' });
     const { facultyId, name, code, chairpersonName, chairpersonEmail } = req.body;
-    if (!facultyId || !name) {
-      return res.status(400).json({ success: false, message: 'Faculty ID and department name are required' });
-    }
+    if (!facultyId || !name) return res.status(400).json({ success: false, message: 'Faculty ID and name required' });
 
     const faculty = await SkillFaculty.findById(facultyId);
     if (!faculty) return res.status(404).json({ success: false, message: 'Faculty not found' });
-
-    // Check if same code already pending
-    const existing = await DepartmentRequest.findOne({
-      skillFaculty: facultyId,
-      'department.code': code?.toUpperCase(),
-      status: 'pending',
-    });
-    if (existing) {
-      return res.status(400).json({ success: false, message: 'A pending request for this department code already exists' });
-    }
 
     const request = await DepartmentRequest.create({
       skillFaculty: facultyId,
       requestedBy: req.user._id,
+      requestedByModel: 'User',
       department: { name, code: code?.toUpperCase() || '', chairpersonName: chairpersonName || '', chairpersonEmail: chairpersonEmail?.toLowerCase() || '' },
     });
 
-    const populated = await DepartmentRequest.findById(request._id)
-      .populate('skillFaculty', 'name code')
-      .populate('requestedBy', 'name email');
-
+    const populated = await DepartmentRequest.findById(request._id).populate('skillFaculty', 'name code');
     res.status(201).json({ success: true, message: `Request sent to Dean of ${faculty.name}`, request: populated });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-// ─── DEAN: Get pending requests for their faculty ─────────────────────────────
-
-// @route  GET /api/departments/requests
-// @desc   Dean gets all department requests for their faculty
-// @access Dean only
+// Dean gets requests
 router.get('/requests', protect, async (req, res) => {
   try {
-    if (req.user.role !== 'dean') {
-      return res.status(403).json({ success: false, message: 'Only deans can view requests' });
-    }
-    const facultyId = req.user.skillFaculty._id || req.user.skillFaculty;
+    if (req.user.role !== 'dean') return res.status(403).json({ success: false, message: 'Dean only' });
+    const facultyId = req.user.skillFaculty?._id || req.user.skillFaculty;
     const requests = await DepartmentRequest.find({ skillFaculty: facultyId })
-      .populate('requestedBy', 'name email avatar')
       .populate('skillFaculty', 'name code')
       .sort({ createdAt: -1 });
-
     res.json({ success: true, requests });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-// ─── SUPER ADMIN: Get all requests sent ──────────────────────────────────────
-
-// @route  GET /api/departments/requests/all
-// @desc   Super admin sees all requests they sent
-// @access Super Admin only
-router.get('/requests/all', protect, superAdminOnly, async (req, res) => {
-  try {
-    const requests = await DepartmentRequest.find({ requestedBy: req.user._id })
-      .populate('skillFaculty', 'name code')
-      .populate('reviewedBy', 'name email')
-      .sort({ createdAt: -1 });
-    res.json({ success: true, requests });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// ─── DEAN: Approve request ────────────────────────────────────────────────────
-
-// @route  PUT /api/departments/requests/:id/approve
-// @desc   Dean approves a department request → adds dept to faculty
-// @access Dean only
+// Dean approves
 router.put('/requests/:id/approve', protect, async (req, res) => {
   try {
-    if (req.user.role !== 'dean') {
-      return res.status(403).json({ success: false, message: 'Only deans can approve requests' });
-    }
-
+    if (req.user.role !== 'dean') return res.status(403).json({ success: false, message: 'Dean only' });
     const request = await DepartmentRequest.findById(req.params.id);
     if (!request) return res.status(404).json({ success: false, message: 'Request not found' });
-    if (request.status !== 'pending') {
-      return res.status(400).json({ success: false, message: 'Request already reviewed' });
-    }
+    if (request.status !== 'pending') return res.status(400).json({ success: false, message: 'Already reviewed' });
 
-    const facultyId = req.user.skillFaculty._id || req.user.skillFaculty;
-    if (request.skillFaculty.toString() !== facultyId.toString()) {
-      return res.status(403).json({ success: false, message: 'Not your faculty' });
-    }
-
+    const facultyId = req.user.skillFaculty?._id || req.user.skillFaculty;
     const faculty = await SkillFaculty.findById(facultyId);
     const dept = request.department;
-    const deptEntry = { name: dept.name, code: dept.code, chairpersonName: dept.chairpersonName, chairpersonEmail: dept.chairpersonEmail };
 
-    // Register chairperson
-    if (dept.chairpersonEmail) {
-      let chair = await User.findOne({ email: dept.chairpersonEmail });
-      if (!chair) {
-        chair = await User.create({
-          name: dept.chairpersonName || 'Chairperson',
-          email: dept.chairpersonEmail,
-          role: 'chairperson',
-          skillFaculty: facultyId,
-          departmentCode: dept.code || dept.name,
-        });
-      } else {
-        chair.role = 'chairperson';
-        chair.skillFaculty = facultyId;
-        chair.departmentCode = dept.code || dept.name;
-        chair.isActive = true;
-        await chair.save();
+    if (request.isEdit && request.deptIndex != null) {
+      // Edit existing department
+      const existing = faculty.departments[request.deptIndex];
+      if (!existing) return res.status(400).json({ success: false, message: 'Department no longer exists' });
+      const oldEmail = existing.chairpersonEmail;
+      const newEmail = dept.chairpersonEmail;
+      if (newEmail && newEmail !== oldEmail) {
+        if (existing.chairperson) await Chairperson.findByIdAndUpdate(existing.chairperson, { skillFaculty: null });
+        const chairId = await registerChairperson(dept, facultyId);
+        existing.chairperson = chairId;
+      } else if (dept.chairpersonName && existing.chairperson) {
+        await Chairperson.findByIdAndUpdate(existing.chairperson, { name: dept.chairpersonName });
       }
-      deptEntry.chairperson = chair._id;
+      existing.name = dept.name;
+      existing.code = dept.code;
+      existing.chairpersonName = dept.chairpersonName;
+      existing.chairpersonEmail = dept.chairpersonEmail;
+      faculty.departments[request.deptIndex] = existing;
+    } else {
+      // Add new department
+      const deptEntry = { name: dept.name, code: dept.code, chairpersonName: dept.chairpersonName, chairpersonEmail: dept.chairpersonEmail };
+      const chairId = await registerChairperson(dept, facultyId);
+      if (chairId) deptEntry.chairperson = chairId;
+      faculty.departments.push(deptEntry);
     }
 
-    faculty.departments.push(deptEntry);
     await faculty.save();
-
     request.status = 'approved';
     request.reviewedBy = req.user._id;
+    request.reviewedByModel = 'Dean';
     request.reviewedAt = new Date();
     await request.save();
-
-    res.json({ success: true, message: `Department "${dept.name}" approved and added!`, request });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
+    res.json({ success: true, message: request.isEdit ? `"${dept.name}" updated!` : `"${dept.name}" approved and added!`, request });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-// ─── DEAN: Reject request ─────────────────────────────────────────────────────
-
-// @route  PUT /api/departments/requests/:id/reject
-// @desc   Dean rejects a department request
-// @access Dean only
+// Dean rejects
 router.put('/requests/:id/reject', protect, async (req, res) => {
   try {
-    if (req.user.role !== 'dean') {
-      return res.status(403).json({ success: false, message: 'Only deans can reject requests' });
-    }
+    if (req.user.role !== 'dean') return res.status(403).json({ success: false, message: 'Dean only' });
     const { reason } = req.body;
     const request = await DepartmentRequest.findById(req.params.id);
-    if (!request) return res.status(404).json({ success: false, message: 'Request not found' });
-    if (request.status !== 'pending') {
-      return res.status(400).json({ success: false, message: 'Request already reviewed' });
-    }
+    if (!request) return res.status(404).json({ success: false, message: 'Not found' });
+    if (request.status !== 'pending') return res.status(400).json({ success: false, message: 'Already reviewed' });
 
     request.status = 'rejected';
     request.rejectionReason = reason || '';
     request.reviewedBy = req.user._id;
+    request.reviewedByModel = 'Dean';
     request.reviewedAt = new Date();
     await request.save();
-
     res.json({ success: true, message: 'Request rejected', request });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-// ─── DEAN: Delete a department ────────────────────────────────────────────────
-
-// @route  DELETE /api/departments/:facultyId/:deptCode
-// @desc   Dean removes a department from their faculty
-// @access Dean only
-router.delete('/:facultyId/:deptIndex', protect, async (req, res) => {
+// Dean edits department directly (no approval)
+router.put('/direct/:facultyId/:deptIndex', protect, async (req, res) => {
   try {
-    if (req.user.role !== 'dean') {
-      return res.status(403).json({ success: false, message: 'Only deans can remove departments' });
-    }
+    if (req.user.role !== 'dean') return res.status(403).json({ success: false, message: 'Dean only' });
+    const { name, code, chairpersonName, chairpersonEmail } = req.body;
     const faculty = await SkillFaculty.findById(req.params.facultyId);
     if (!faculty) return res.status(404).json({ success: false, message: 'Faculty not found' });
-
     const idx = parseInt(req.params.deptIndex);
     if (isNaN(idx) || idx < 0 || idx >= faculty.departments.length) {
       return res.status(400).json({ success: false, message: 'Invalid department index' });
     }
+    const dept = faculty.departments[idx];
+    const oldEmail = dept.chairpersonEmail;
+    const newEmail = chairpersonEmail?.toLowerCase() || '';
 
+    // If chairperson email changed, update chairperson record
+    if (newEmail && newEmail !== oldEmail) {
+      // Deactivate old chairperson link
+      if (dept.chairperson) {
+        await Chairperson.findByIdAndUpdate(dept.chairperson, { skillFaculty: null, departmentCode: null });
+      }
+      const chairId = await registerChairperson(
+        { name: chairpersonName, code: code || dept.code, chairpersonName, chairpersonEmail: newEmail },
+        faculty._id
+      );
+      dept.chairperson = chairId;
+    } else if (chairpersonName && dept.chairperson) {
+      await Chairperson.findByIdAndUpdate(dept.chairperson, { name: chairpersonName });
+    }
+
+    if (name) dept.name = name;
+    if (code) dept.code = code.toUpperCase();
+    if (chairpersonName) dept.chairpersonName = chairpersonName;
+    if (chairpersonEmail) dept.chairpersonEmail = newEmail;
+    faculty.departments[idx] = dept;
+    await faculty.save();
+    res.json({ success: true, message: 'Department updated!', faculty });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// Super admin sends edit request to dean
+router.post('/edit-request', protect, async (req, res) => {
+  try {
+    if (req.user.role !== 'super_admin') return res.status(403).json({ success: false, message: 'Super Admin only' });
+    const { facultyId, deptIndex, name, code, chairpersonName, chairpersonEmail } = req.body;
+    const faculty = await SkillFaculty.findById(facultyId);
+    if (!faculty) return res.status(404).json({ success: false, message: 'Faculty not found' });
+    const dept = faculty.departments[deptIndex];
+    if (!dept) return res.status(400).json({ success: false, message: 'Department not found' });
+
+    const request = await DepartmentRequest.create({
+      skillFaculty: facultyId,
+      requestedBy: req.user._id,
+      requestedByModel: 'User',
+      isEdit: true,
+      deptIndex,
+      department: {
+        name: name || dept.name,
+        code: code?.toUpperCase() || dept.code,
+        chairpersonName: chairpersonName || dept.chairpersonName,
+        chairpersonEmail: chairpersonEmail?.toLowerCase() || dept.chairpersonEmail,
+      },
+    });
+    res.status(201).json({ success: true, message: `Edit request sent to Dean of ${faculty.name}`, request });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// Dean deletes department
+router.delete('/:facultyId/:deptIndex', protect, async (req, res) => {
+  try {
+    if (req.user.role !== 'dean') return res.status(403).json({ success: false, message: 'Dean only' });
+    const faculty = await SkillFaculty.findById(req.params.facultyId);
+    if (!faculty) return res.status(404).json({ success: false, message: 'Not found' });
+    const idx = parseInt(req.params.deptIndex);
+    if (isNaN(idx) || idx < 0 || idx >= faculty.departments.length) {
+      return res.status(400).json({ success: false, message: 'Invalid index' });
+    }
     faculty.departments.splice(idx, 1);
     await faculty.save();
     res.json({ success: true, message: 'Department removed', faculty });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
 module.exports = router;

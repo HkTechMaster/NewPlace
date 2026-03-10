@@ -1,229 +1,168 @@
 const express = require('express');
 const router = express.Router();
 const SkillFaculty = require('../models/SkillFaculty');
-const User = require('../models/User');
+const Dean = require('../models/Dean');
+const Chairperson = require('../models/Chairperson');
+const DepartmentRequest = require('../models/DepartmentRequest');
 const { protect, superAdminOnly } = require('../middleware/auth');
 
-// @route  GET /api/skill-faculties
-// @desc   Get all skill faculties
-// @access Private
+// GET all
 router.get('/', protect, async (req, res) => {
   try {
     const faculties = await SkillFaculty.find().populate('dean', 'name email avatar');
     res.json({ success: true, count: faculties.length, faculties });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-// @route  GET /api/skill-faculties/:id
-// @desc   Get single skill faculty
-// @access Private
+// GET one
 router.get('/:id', protect, async (req, res) => {
   try {
-    const faculty = await SkillFaculty.findById(req.params.id).populate('dean', 'name email avatar');
-    if (!faculty) {
-      return res.status(404).json({ success: false, message: 'Skill Faculty not found' });
-    }
+    const faculty = await SkillFaculty.findById(req.params.id)
+      .populate('dean', 'name email avatar')
+      .populate('departments.chairperson', 'name email');
+    if (!faculty) return res.status(404).json({ success: false, message: 'Not found' });
     res.json({ success: true, faculty });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-// @route  POST /api/skill-faculties
-// @desc   Create a new skill faculty with dean
-// @access Super Admin only
+// POST create — super admin creates faculty + registers dean
 router.post('/', protect, superAdminOnly, async (req, res) => {
   try {
     const { code, name, description, deanName, deanEmail, departments } = req.body;
-
     if (!code || !name || !deanName || !deanEmail) {
-      return res.status(400).json({
-        success: false,
-        message: 'Faculty code, name, dean name, and dean email are required',
-      });
+      return res.status(400).json({ success: false, message: 'Code, name, dean name & email required' });
     }
 
-    const existingFaculty = await SkillFaculty.findOne({ code: code.toUpperCase() });
-    if (existingFaculty) {
-      return res.status(400).json({
-        success: false,
-        message: `Faculty with code "${code.toUpperCase()}" already exists`,
-      });
+    if (await SkillFaculty.findOne({ code: code.toUpperCase() })) {
+      return res.status(400).json({ success: false, message: `Faculty code "${code.toUpperCase()}" already exists` });
     }
 
-    // Create the skill faculty
+    // Create faculty first
     const faculty = await SkillFaculty.create({
-      code: code.toUpperCase(),
-      name,
-      description,
-      deanName,
-      deanEmail: deanEmail.toLowerCase(),
-      departments: departments || [],
+      code: code.toUpperCase(), name, description,
+      deanName, deanEmail: deanEmail.toLowerCase(),
     });
 
-    // Create or update Dean user
-    let deanUser = await User.findOne({ email: deanEmail.toLowerCase() });
-    if (deanUser && deanUser.role === 'super_admin') {
-      await faculty.deleteOne();
-      return res.status(400).json({ success: false, message: 'This email belongs to a Super Admin account' });
-    }
-    if (!deanUser) {
-      deanUser = await User.create({ name: deanName, email: deanEmail.toLowerCase(), role: 'dean', skillFaculty: faculty._id });
+    // Register dean in deans collection
+    let dean = await Dean.findOne({ email: deanEmail.toLowerCase() });
+    if (!dean) {
+      dean = await Dean.create({ name: deanName, email: deanEmail.toLowerCase(), skillFaculty: faculty._id });
     } else {
-      deanUser.name = deanName;
-      deanUser.role = 'dean';
-      deanUser.skillFaculty = faculty._id;
-      deanUser.isActive = true;
-      await deanUser.save();
+      dean.name = deanName; dean.skillFaculty = faculty._id; dean.isActive = true;
+      await dean.save();
     }
-    faculty.dean = deanUser._id;
+    faculty.dean = dean._id;
 
-    // Register chairpersons as users
-    const updatedDepts = [];
+    // Register any initial departments + chairpersons
+    const processedDepts = [];
     for (const dept of (departments || [])) {
-      const deptEntry = { ...dept };
+      const entry = { name: dept.name, code: dept.code?.toUpperCase() || '', chairpersonName: dept.chairpersonName || '', chairpersonEmail: dept.chairpersonEmail?.toLowerCase() || '' };
       if (dept.chairpersonEmail) {
-        let chair = await User.findOne({ email: dept.chairpersonEmail.toLowerCase() });
+        let chair = await Chairperson.findOne({ email: dept.chairpersonEmail.toLowerCase() });
         if (!chair) {
-          chair = await User.create({
+          chair = await Chairperson.create({
             name: dept.chairpersonName || 'Chairperson',
             email: dept.chairpersonEmail.toLowerCase(),
-            role: 'chairperson',
             skillFaculty: faculty._id,
             departmentCode: dept.code || dept.name,
+            departmentName: dept.name,
           });
         } else {
-          chair.role = 'chairperson';
           chair.skillFaculty = faculty._id;
           chair.departmentCode = dept.code || dept.name;
+          chair.departmentName = dept.name;
           chair.isActive = true;
           await chair.save();
         }
-        deptEntry.chairperson = chair._id;
+        entry.chairperson = chair._id;
       }
-      updatedDepts.push(deptEntry);
+      processedDepts.push(entry);
     }
 
-    faculty.departments = updatedDepts;
+    faculty.departments = processedDepts;
     await faculty.save();
 
-    const populatedFaculty = await SkillFaculty.findById(faculty._id).populate('dean', 'name email avatar');
-
+    const populated = await SkillFaculty.findById(faculty._id).populate('dean', 'name email avatar');
     res.status(201).json({
       success: true,
-      message: `Skill Faculty "${name}" created! Dean and Chairpersons can now login with Google.`,
-      faculty: populatedFaculty,
+      message: `Faculty "${name}" created! Dean & Chairpersons registered.`,
+      faculty: populated,
     });
-  } catch (error) {
-    console.error('Create faculty error:', error);
-    res.status(500).json({ success: false, message: error.message });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, message: e.message });
   }
 });
 
-// @route  PUT /api/skill-faculties/:id
-// @desc   Update a skill faculty
-// @access Super Admin only
+// PUT update — dept additions → send as requests to dean
 router.put('/:id', protect, superAdminOnly, async (req, res) => {
   try {
-    const {
-      code,
-      name,
-      description,
-      deanName,
-      deanEmail,
-      establishedYear,
-      totalStudents,
-      departments,
-      contactEmail,
-      isActive,
-    } = req.body;
-
+    const { code, name, description, deanName, deanEmail, departments, isActive } = req.body;
     const faculty = await SkillFaculty.findById(req.params.id);
-    if (!faculty) {
-      return res.status(404).json({ success: false, message: 'Skill Faculty not found' });
-    }
+    if (!faculty) return res.status(404).json({ success: false, message: 'Not found' });
 
-    // If dean email changed, update user accounts
+    // Dean email change
     if (deanEmail && deanEmail.toLowerCase() !== faculty.deanEmail) {
-      // Deactivate old dean
       if (faculty.dean) {
-        const oldDean = await User.findById(faculty.dean);
-        if (oldDean && oldDean.role === 'dean') {
-          oldDean.skillFaculty = null;
-          await oldDean.save();
-        }
+        await Dean.findByIdAndUpdate(faculty.dean, { skillFaculty: null });
       }
-
-      // Create or update new dean
-      let newDean = await User.findOne({ email: deanEmail.toLowerCase() });
+      let newDean = await Dean.findOne({ email: deanEmail.toLowerCase() });
       if (!newDean) {
-        newDean = await User.create({
-          name: deanName || faculty.deanName,
-          email: deanEmail.toLowerCase(),
-          role: 'dean',
-          skillFaculty: faculty._id,
-        });
+        newDean = await Dean.create({ name: deanName || faculty.deanName, email: deanEmail.toLowerCase(), skillFaculty: faculty._id });
       } else {
-        newDean.name = deanName || newDean.name;
-        newDean.role = 'dean';
-        newDean.skillFaculty = faculty._id;
-        newDean.isActive = true;
+        newDean.name = deanName || newDean.name; newDean.skillFaculty = faculty._id; newDean.isActive = true;
         await newDean.save();
       }
       faculty.dean = newDean._id;
     } else if (deanName && faculty.dean) {
-      // Just update dean name
-      await User.findByIdAndUpdate(faculty.dean, { name: deanName });
+      await Dean.findByIdAndUpdate(faculty.dean, { name: deanName });
     }
 
-    // Update faculty fields
+    // New departments → send as requests to dean
+    let requestsSent = 0;
+    if (departments && departments.length > 0) {
+      const existingCodes = faculty.departments.map(d => d.code?.toUpperCase()).filter(Boolean);
+      const existingNames = faculty.departments.map(d => d.name?.toLowerCase()).filter(Boolean);
+      for (const dept of departments) {
+        const isNew = dept.code ? !existingCodes.includes(dept.code?.toUpperCase()) : !existingNames.includes(dept.name?.toLowerCase());
+        if (isNew) {
+          await DepartmentRequest.create({
+            skillFaculty: faculty._id,
+            requestedBy: req.user._id,
+            requestedByModel: 'User',
+            department: { name: dept.name, code: dept.code?.toUpperCase() || '', chairpersonName: dept.chairpersonName || '', chairpersonEmail: dept.chairpersonEmail?.toLowerCase() || '' },
+          });
+          requestsSent++;
+        }
+      }
+    }
+
     if (code) faculty.code = code.toUpperCase();
     if (name) faculty.name = name;
     if (description !== undefined) faculty.description = description;
     if (deanName) faculty.deanName = deanName;
     if (deanEmail) faculty.deanEmail = deanEmail.toLowerCase();
-    if (establishedYear) faculty.establishedYear = establishedYear;
-    if (totalStudents !== undefined) faculty.totalStudents = totalStudents;
-    if (departments) faculty.departments = departments;
-    if (contactEmail) faculty.contactEmail = contactEmail;
     if (isActive !== undefined) faculty.isActive = isActive;
 
     await faculty.save();
-
-    const updatedFaculty = await SkillFaculty.findById(faculty._id).populate('dean', 'name email avatar');
-
+    const updated = await SkillFaculty.findById(faculty._id).populate('dean', 'name email avatar');
     res.json({
       success: true,
-      message: 'Skill Faculty updated successfully',
-      faculty: updatedFaculty,
+      message: requestsSent > 0 ? `Updated. ${requestsSent} dept request(s) sent to Dean for approval.` : 'Updated successfully',
+      faculty: updated,
     });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-// @route  DELETE /api/skill-faculties/:id
-// @desc   Delete a skill faculty
-// @access Super Admin only
+// DELETE
 router.delete('/:id', protect, superAdminOnly, async (req, res) => {
   try {
     const faculty = await SkillFaculty.findById(req.params.id);
-    if (!faculty) {
-      return res.status(404).json({ success: false, message: 'Skill Faculty not found' });
-    }
-
-    // Remove dean's skill faculty reference
-    if (faculty.dean) {
-      await User.findByIdAndUpdate(faculty.dean, { skillFaculty: null });
-    }
-
+    if (!faculty) return res.status(404).json({ success: false, message: 'Not found' });
+    if (faculty.dean) await Dean.findByIdAndUpdate(faculty.dean, { skillFaculty: null });
     await faculty.deleteOne();
-    res.json({ success: true, message: 'Skill Faculty deleted successfully' });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
+    res.json({ success: true, message: 'Deleted' });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
 module.exports = router;

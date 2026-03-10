@@ -1,46 +1,77 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Dean = require('../models/Dean');
+const Chairperson = require('../models/Chairperson');
+const Coordinator = require('../models/Coordinator');
+const Student = require('../models/Student');
+
+// Find user across ALL collections by ID
+const findUserAnywhere = async (id) => {
+  let user = await User.findById(id);
+  if (user) return { user, role: 'super_admin' };
+
+  user = await Dean.findById(id).populate('skillFaculty', 'name code departments');
+  if (user) return { user, role: 'dean' };
+
+  user = await Chairperson.findById(id).populate('skillFaculty', 'name code');
+  if (user) return { user, role: 'chairperson' };
+
+  user = await Coordinator.findById(id).populate('skillFaculty', 'name code').populate('course', 'name code');
+  if (user) return { user, role: 'coordinator' };
+
+  user = await Student.findById(id).populate('skillFaculty', 'name code').populate('course', 'name code');
+  if (user) return { user, role: 'student' };
+
+  return null;
+};
+
+// Find user across ALL collections by email
+const findByEmailAnywhere = async (email) => {
+  const e = email.toLowerCase();
+  let found;
+
+  found = await User.findOne({ email: e });
+  if (found) return { user: found, role: 'super_admin', collection: 'users' };
+
+  found = await Dean.findOne({ email: e }).populate('skillFaculty', 'name code departments');
+  if (found) return { user: found, role: 'dean', collection: 'deans' };
+
+  found = await Chairperson.findOne({ email: e }).populate('skillFaculty', 'name code');
+  if (found) return { user: found, role: 'chairperson', collection: 'chairpersons' };
+
+  found = await Coordinator.findOne({ email: e }).populate('skillFaculty', 'name code').populate('course', 'name code');
+  if (found) return { user: found, role: 'coordinator', collection: 'coordinators' };
+
+  // Check student by REGISTRATION email
+  found = await Student.findOne({ email: e }).populate('skillFaculty', 'name code').populate('course', 'name code');
+  if (found) return { user: found, role: 'student', collection: 'students' };
+
+  return null;
+};
 
 const protect = async (req, res, next) => {
   try {
-    let token;
-
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-      token = req.headers.authorization.split(' ')[1];
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith('Bearer ')) {
+      return res.status(401).json({ success: false, message: 'No token provided' });
     }
-
-    if (!token) {
-      return res.status(401).json({ success: false, message: 'Not authorized, no token' });
-    }
-
+    const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id).populate('skillFaculty');
-
-    if (!user || !user.isActive) {
-      return res.status(401).json({ success: false, message: 'User not found or inactive' });
-    }
-
-    req.user = user;
+    const result = await findUserAnywhere(decoded.id);
+    if (!result) return res.status(401).json({ success: false, message: 'User not found' });
+    req.user = result.user;
+    req.user.role = result.role;
     next();
   } catch (error) {
-    return res.status(401).json({ success: false, message: 'Not authorized, token failed' });
+    return res.status(401).json({ success: false, message: 'Invalid token' });
   }
 };
 
 const superAdminOnly = (req, res, next) => {
-  if (req.user && req.user.role === 'super_admin') {
-    next();
-  } else {
-    res.status(403).json({ success: false, message: 'Access denied. Super Admin only.' });
-  }
+  if (req.user?.role !== 'super_admin') return res.status(403).json({ success: false, message: 'Super Admin access required' });
+  next();
 };
 
-const deanOnly = (req, res, next) => {
-  if (req.user && (req.user.role === 'dean' || req.user.role === 'super_admin' || req.user.role === 'chairperson')) {
-    next();
-  } else {
-    res.status(403).json({ success: false, message: 'Access denied.' });
-  }
-};
+const generateToken = (id) => jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
-module.exports = { protect, superAdminOnly, deanOnly };
+module.exports = { protect, superAdminOnly, generateToken, findUserAnywhere, findByEmailAnywhere };
