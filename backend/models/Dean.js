@@ -1,17 +1,21 @@
 const mongoose = require('mongoose');
 
-// Super Admin only — single document in this collection
-const userSchema = new mongoose.Schema(
+const deanSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     googleId: { type: String, default: null },
     avatar: { type: String, default: null },
-    role: { type: String, default: 'super_admin', immutable: true },
+    role: { type: String, default: 'dean', immutable: true },
+    skillFaculty: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'SkillFaculty',
+      default: null,
+    },
     isActive: { type: Boolean, default: true },
     lastLogin: { type: Date, default: null },
   },
-  { timestamps: true, collection: 'users' }
+  { timestamps: true, collection: 'deans' }
 );
 
-module.exports = mongoose.model('User', userSchema);
+module.exports = mongoose.model('Dean', deanSchema);
