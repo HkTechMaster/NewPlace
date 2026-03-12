@@ -15,8 +15,10 @@ export default function Navbar() {
     navigate('/login');
   };
 
-  const roleBadge = user?.role === 'super_admin' ? 'Super Admin' : user?.role === 'dean' ? 'Dean' : user?.role === 'chairperson' ? 'Chairperson' : 'Coordinator';
-  const roleColor = user?.role === 'super_admin' ? 'gold' : user?.role === 'dean' ? 'blue' : 'green';
+  const roleLabels = { super_admin:'Super Admin', dean:'Dean', chairperson:'Chairperson', coordinator:'Coordinator', student:'Student' };
+  const roleColors = { super_admin:'gold', dean:'blue', chairperson:'green', coordinator:'green', student:'green' };
+  const roleBadge = roleLabels[user?.role] || user?.role;
+  const roleColor = roleColors[user?.role] || 'blue';
 
   return (
     <nav className={styles.nav}>

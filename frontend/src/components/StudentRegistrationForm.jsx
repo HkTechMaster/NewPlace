@@ -24,22 +24,19 @@ export default function StudentRegistrationForm({ googleUser, onSuccess, onBack 
     enrollmentNo: '',
   });
 
-  // Load faculties on mount
+  // Load faculties on mount — use public route (no auth needed)
   useEffect(() => {
-    axios.get('/skill-faculties').then(res => {
+    axios.get('/skill-faculties/public').then(res => {
       setFaculties(res.data.faculties || []);
     }).catch(() => toast.error('Failed to load faculties')).finally(() => setLoadingFaculties(false));
   }, []);
 
-  // Load courses when faculty changes
+  // Load courses when faculty changes — use public route
   useEffect(() => {
     if (!form.skillFacultyId) { setCourses([]); return; }
     setLoadingCourses(true);
-    axios.get('/courses').then(res => {
-      const filtered = (res.data.courses || []).filter(
-        c => (c.skillFaculty?._id || c.skillFaculty) === form.skillFacultyId && c.isActive
-      );
-      setCourses(filtered);
+    axios.get(`/courses/public?facultyId=${form.skillFacultyId}`).then(res => {
+      setCourses(res.data.courses || []);
     }).catch(() => toast.error('Failed to load courses')).finally(() => setLoadingCourses(false));
   }, [form.skillFacultyId]);
 

@@ -7,6 +7,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import DeanDashboard from './pages/DeanDashboard';
 import ChairpersonDashboard from './pages/ChairpersonDashboard';
 import CoordinatorDashboard from './pages/CoordinatorDashboard';
+import StudentDashboard from './pages/StudentDashboard';
 
 export default function App() {
   return (
@@ -30,6 +31,10 @@ export default function App() {
 
         <Route path="/coordinator/dashboard" element={
           <ProtectedRoute requiredRole="coordinator"><CoordinatorDashboard /></ProtectedRoute>
+        } />
+
+        <Route path="/student/dashboard" element={
+          <ProtectedRoute requiredRole="student"><StudentDashboard /></ProtectedRoute>
         } />
 
         <Route path="*" element={<Navigate to="/login" replace />} />
