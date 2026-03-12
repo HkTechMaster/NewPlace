@@ -4,6 +4,20 @@ const Course = require('../models/Course');
 const Coordinator = require('../models/Coordinator');
 const { protect } = require('../middleware/auth');
 
+// GET courses — PUBLIC for student registration (filter by faculty)
+router.get('/public', async (req, res) => {
+  try {
+    const { facultyId } = req.query;
+    const filter = { isActive: true };
+    if (facultyId) filter.skillFaculty = facultyId;
+    const courses = await Course.find(filter)
+      .select('name code skillFaculty departmentCode departmentName duration totalBatches currentBatch totalSeats type')
+      .populate('skillFaculty', 'name code')
+      .sort({ name: 1 });
+    res.json({ success: true, courses });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+
 // GET courses
 router.get('/', protect, async (req, res) => {
   try {

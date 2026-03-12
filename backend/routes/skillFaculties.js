@@ -6,6 +6,14 @@ const Chairperson = require('../models/Chairperson');
 const DepartmentRequest = require('../models/DepartmentRequest');
 const { protect, superAdminOnly } = require('../middleware/auth');
 
+// GET all — PUBLIC for student registration form
+router.get('/public', async (req, res) => {
+  try {
+    const faculties = await SkillFaculty.find({ isActive: true }).select('code name description');
+    res.json({ success: true, faculties });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+
 // GET all
 router.get('/', protect, async (req, res) => {
   try {

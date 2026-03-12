@@ -141,6 +141,18 @@ router.put('/:id/reject', protect, async (req, res) => {
   } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
+// GET student's own full profile (for student dashboard)
+router.get('/me', protect, async (req, res) => {
+  try {
+    if (req.user.role !== 'student') return res.status(403).json({ success: false, message: 'Students only' });
+    const student = await Student.findById(req.user._id)
+      .populate('course', 'name code duration type totalBatches totalSeats currentBatch')
+      .populate('skillFaculty', 'name code description');
+    if (!student) return res.status(404).json({ success: false, message: 'Not found' });
+    res.json({ success: true, student });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+
 // GET students grouped by course+batch for coordinator
 router.get('/by-course', protect, async (req, res) => {
   try {
