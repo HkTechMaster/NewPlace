@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
-import { studentAPI, courseAPI } from '../utils/api';
+import { studentAPI, courseAPI, cvAPI } from '../utils/api';
+import { CVPreview } from './CVBuilder';
 import styles from './CoordinatorDashboard.module.css';
 
 export default function CoordinatorDashboard() {
@@ -17,24 +18,62 @@ export default function CoordinatorDashboard() {
   const [rejectReason, setRejectReason] = useState('');
   const [expandedBatch, setExpandedBatch] = useState({});
 
+  // CV state
+  const [cvRequests, setCvRequests] = useState({ pendingCVs: [], pendingUpdates: [] });
+  const [studentsList, setStudentsList] = useState({});
+  const [viewCV, setViewCV] = useState(null); // { cv, isUpdate }
+  const [cvRejectModal, setCvRejectModal] = useState(null); // { id, isUpdate, name }
+  const [cvRejectReason, setCvRejectReason] = useState('');
+
   useEffect(() => { fetchAll(); }, []);
 
   const fetchAll = async () => {
     try {
       setLoading(true);
-      const [pendRes, groupRes, courseRes] = await Promise.all([
+      const [pendRes, groupRes, courseRes, cvReqRes, cvListRes] = await Promise.all([
         studentAPI.getPending(),
         studentAPI.getByCourse(),
         courseAPI.getAll(),
+        cvAPI.getRequests().catch(() => ({ data: { pendingCVs: [], pendingUpdates: [] } })),
+        cvAPI.getStudentsList().catch(() => ({ data: { grouped: {} } })),
       ]);
       setPendingStudents(pendRes.data.students || []);
       setGrouped(groupRes.data.grouped || {});
       setCourses(courseRes.data.courses || []);
+      setCvRequests(cvReqRes.data);
+      setStudentsList(cvListRes.data.grouped || {});
     } catch { toast.error('Failed to load data'); }
     finally { setLoading(false); }
   };
 
   const totalApproved = Object.values(grouped).reduce((a, c) => a + Object.values(c.batches).reduce((b, s) => b + s.length, 0), 0);
+  const totalCvRequests = (cvRequests.pendingCVs?.length || 0) + (cvRequests.pendingUpdates?.length || 0);
+
+  const handleCvVerify = async (id) => {
+    try { await cvAPI.verify(id); toast.success('CV Verified!'); fetchAll(); }
+    catch (e) { toast.error(e.response?.data?.message || 'Failed'); }
+  };
+  const handleCvReject = async () => {
+    try {
+      if (cvRejectModal.isUpdate) await cvAPI.rejectUpdate(cvRejectModal.id, cvRejectReason);
+      else await cvAPI.reject(cvRejectModal.id, cvRejectReason);
+      toast.success('CV rejected'); setCvRejectModal(null); setCvRejectReason(''); fetchAll();
+    } catch { toast.error('Failed'); }
+  };
+  const handleCvAcceptUpdate = async (id) => {
+    try { await cvAPI.acceptUpdate(id); toast.success('Updated CV accepted!'); fetchAll(); }
+    catch (e) { toast.error(e.response?.data?.message || 'Failed'); }
+  };
+  const handleRemind = async (cvId, name) => {
+    try { await cvAPI.remind(cvId); toast.success(`Reminder sent to ${name}`); }
+    catch { toast.error('Failed'); }
+  };
+  const openCVView = async (cvId, isUpdate = false) => {
+    try {
+      const res = isUpdate ? await cvAPI.getPendingById(cvId) : await cvAPI.getById(cvId);
+      setViewCV({ data: isUpdate ? res.data.pending.data : res.data.cv, id: cvId, isUpdate });
+    } catch { toast.error('Failed to load CV'); }
+  };
 
   const handleApprove = async (id, name) => {
     try { await studentAPI.approve(id); toast.success(`${name} approved!`); fetchAll(); }
@@ -86,6 +125,12 @@ export default function CoordinatorDashboard() {
           <button className={`${styles.tab} ${activeTab==='pending'?styles.tabActive:''}`} onClick={() => setActiveTab('pending')}>
             Pending Approvals {pendingStudents.length > 0 && <span className={styles.badge}>{pendingStudents.length}</span>}
           </button>
+          <button className={`${styles.tab} ${activeTab==='cv'?styles.tabActive:''}`} onClick={() => setActiveTab('cv')}>
+            CV Requests {totalCvRequests > 0 && <span className={styles.badge}>{totalCvRequests}</span>}
+          </button>
+          <button className={`${styles.tab} ${activeTab==='cvlist'?styles.tabActive:''}`} onClick={() => setActiveTab('cvlist')}>
+            Students CV Status
+          </button>
           <button className={`${styles.tab} ${activeTab==='students'?styles.tabActive:''}`} onClick={() => setActiveTab('students')}>
             Students by Course
           </button>
@@ -132,6 +177,113 @@ export default function CoordinatorDashboard() {
                   ))}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* ── CV REQUESTS TAB ── */}
+          {activeTab === 'cv' && (
+            <div className={styles.tabContent}>
+              {totalCvRequests === 0 ? (
+                <div className={styles.empty}><div className={styles.emptyIcon}>📋</div><h3>No Pending CV Requests</h3><p>Student CV submissions will appear here.</p></div>
+              ) : (<>
+                {cvRequests.pendingCVs?.length > 0 && (<>
+                  <div className={styles.cvRequestSection}>First-time Submissions ({cvRequests.pendingCVs.length})</div>
+                  <div className={styles.pendingList}>
+                    {cvRequests.pendingCVs.map(cv => (
+                      <div key={cv._id} className={`${styles.pendingCard} ${styles.cvCard}`}>
+                        <div className={styles.pendingLeft}>
+                          {cv.student?.photo ? <img src={cv.student.photo} alt="" className={styles.studentPhoto}/> : <div className={styles.studentPhotoFallback}>{cv.student?.name?.charAt(0)}</div>}
+                          <div className={styles.pendingInfo}>
+                            <div className={styles.pendingName}>{cv.student?.name}</div>
+                            <div className={styles.pendingEmail}>{cv.student?.email}</div>
+                            <div className={styles.pendingMeta}>
+                              <span className={styles.metaTag}>{cv.student?.courseName}</span>
+                              <span className={styles.metaTag}>Batch {cv.student?.batch}</span>
+                              <span className={styles.metaTag}>Sem {cv.student?.semester}</span>
+                            </div>
+                            {cv.submittedAt && <div className={styles.enrollNo}>Submitted: {new Date(cv.submittedAt).toLocaleDateString('en-IN')}</div>}
+                          </div>
+                        </div>
+                        <div className={styles.pendingRight}>
+                          <button className={styles.viewBtn} onClick={() => openCVView(cv._id)}>View CV</button>
+                          <button className={styles.approveBtn} onClick={() => handleCvVerify(cv._id)}>✓ Verify</button>
+                          <button className={styles.rejectBtn} onClick={() => { setCvRejectModal({ id: cv._id, isUpdate: false, name: cv.student?.name }); setCvRejectReason(''); }}>✕ Reject</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>)}
+                {cvRequests.pendingUpdates?.length > 0 && (<>
+                  <div className={styles.cvRequestSection} style={{marginTop:16}}>CV Update Requests ({cvRequests.pendingUpdates.length})</div>
+                  <div className={styles.pendingList}>
+                    {cvRequests.pendingUpdates.map(upd => (
+                      <div key={upd._id} className={`${styles.pendingCard} ${styles.cvCard}`} style={{borderLeftColor:'var(--gold)'}}>
+                        <div className={styles.pendingLeft}>
+                          {upd.student?.photo ? <img src={upd.student.photo} alt="" className={styles.studentPhoto}/> : <div className={styles.studentPhotoFallback}>{upd.student?.name?.charAt(0)}</div>}
+                          <div className={styles.pendingInfo}>
+                            <div className={styles.pendingName}>{upd.student?.name} <span className={styles.updateTag}>UPDATE</span></div>
+                            <div className={styles.pendingEmail}>{upd.student?.email}</div>
+                            <div className={styles.pendingMeta}>
+                              <span className={styles.metaTag}>{upd.student?.courseName}</span>
+                              <span className={styles.metaTag}>Batch {upd.student?.batch}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className={styles.pendingRight}>
+                          <button className={styles.viewBtn} onClick={() => openCVView(upd._id, true)}>View New CV</button>
+                          <button className={styles.approveBtn} onClick={() => handleCvAcceptUpdate(upd._id)}>✓ Accept</button>
+                          <button className={styles.rejectBtn} onClick={() => { setCvRejectModal({ id: upd._id, isUpdate: true, name: upd.student?.name }); setCvRejectReason(''); }}>✕ Reject</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>)}
+              </>)}
+            </div>
+          )}
+
+          {/* ── CV STATUS LIST TAB ── */}
+          {activeTab === 'cvlist' && (
+            <div className={styles.tabContent}>
+              {!Object.keys(studentsList).length ? (
+                <div className={styles.empty}><div className={styles.emptyIcon}>📊</div><h3>No students yet</h3></div>
+              ) : Object.entries(studentsList).map(([courseName, batches]) => (
+                <div key={courseName} className={styles.courseGroup}>
+                  <div className={styles.courseGroupHeader}>
+                    <div className={styles.courseGroupTitle}>{courseName}</div>
+                    <span className={styles.totalStudents}>{Object.values(batches).reduce((a,b)=>a+b.length,0)} students</span>
+                  </div>
+                  {Object.entries(batches).map(([batch, students]) => (
+                    <div key={batch} className={styles.batchSection}>
+                      <div className={styles.batchHeader} onClick={() => toggleBatch(courseName, batch)}>
+                        <div className={styles.batchLeft}><span className={styles.batchIcon}>📋</span><span className={styles.batchName}>Batch {batch}</span></div>
+                        <div className={styles.batchRight}><span className={styles.batchCount}>{students.length} students</span></div>
+                      </div>
+                      <div className={styles.studentTable}>
+                        <div className={styles.tableHeader}><span>Student</span><span>Semester</span><span>CV Status</span><span>Actions</span></div>
+                        {students.map(s => {
+                          const statusMap = { no_cv:{ label:'No CV', color:'var(--text-muted)' }, draft:{ label:'Draft', color:'var(--text-muted)' }, pending:{ label:'⏳ Pending', color:'var(--warning)' }, verified:{ label:'✓ Verified', color:'var(--success)' }, rejected:{ label:'✗ Rejected', color:'var(--danger)' } };
+                          const st = statusMap[s.cvStatus] || statusMap.no_cv;
+                          return (
+                            <div key={s._id} className={styles.tableRow}>
+                              <div className={styles.tableStudent}>
+                                {s.photo ? <img src={s.photo} alt="" className={styles.tablePhoto}/> : <div className={styles.tablePhotoFallback}>{s.name?.charAt(0)}</div>}
+                                <div><div className={styles.tableName}>{s.name}{s.hasPendingUpdate && <span className={styles.updateTag}> UPDATE</span>}</div><div className={styles.tableEmail}>{s.email}</div></div>
+                              </div>
+                              <span className={styles.tableCell}>Sem {s.semester}</span>
+                              <span className={styles.tableCell} style={{color:st.color,fontWeight:600}}>{st.label}</span>
+                              <div style={{display:'flex',gap:6}}>
+                                {s.cvId && <button className={styles.viewBtn} onClick={() => openCVView(s.cvId)}>View CV</button>}
+                                {s.cvStatus === 'rejected' && s.cvId && <button className={styles.remindBtn} onClick={() => handleRemind(s.cvId, s.name)}>🔔 Remind</button>}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))}
             </div>
           )}
 
@@ -286,7 +438,51 @@ export default function CoordinatorDashboard() {
         </div>
       )}
 
-      {/* ── Reject Modal ── */}
+      {/* ── CV View Modal ── */}
+      {viewCV && (
+        <div className={styles.overlay} onClick={e => e.target===e.currentTarget && setViewCV(null)}>
+          <div className={styles.studentModal} style={{maxWidth:780}}>
+            <div className={styles.studentModalHeader}>
+              <h3>{viewCV.isUpdate ? 'Updated CV Submission' : 'Student CV'}</h3>
+              <button className={styles.closeBtn} onClick={() => setViewCV(null)}>✕</button>
+            </div>
+            <div style={{overflow:'auto',padding:24,maxHeight:'70vh'}}>
+              <CVPreview data={viewCV.data}/>
+            </div>
+            {!viewCV.isUpdate && (
+              <div className={styles.studentModalFooter}>
+                <button className={styles.approveBtn} onClick={() => { handleCvVerify(viewCV.id); setViewCV(null); }}>✓ Verify CV</button>
+                <button className={styles.rejectBtn} onClick={() => { setCvRejectModal({ id: viewCV.id, isUpdate: false, name: '' }); setViewCV(null); }}>✕ Reject</button>
+                <button className={styles.cancelBtn} onClick={() => setViewCV(null)}>Close</button>
+              </div>
+            )}
+            {viewCV.isUpdate && (
+              <div className={styles.studentModalFooter}>
+                <button className={styles.approveBtn} onClick={() => { handleCvAcceptUpdate(viewCV.id); setViewCV(null); }}>✓ Accept Update</button>
+                <button className={styles.rejectBtn} onClick={() => { setCvRejectModal({ id: viewCV.id, isUpdate: true, name: '' }); setViewCV(null); }}>✕ Reject Update</button>
+                <button className={styles.cancelBtn} onClick={() => setViewCV(null)}>Close</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── CV Reject Modal ── */}
+      {cvRejectModal && (
+        <div className={styles.overlay} onClick={e => e.target===e.currentTarget && setCvRejectModal(null)}>
+          <div className={styles.rejectBox}>
+            <h3 className={styles.rejectTitle}>{cvRejectModal.isUpdate ? 'Reject CV Update' : 'Reject CV'}</h3>
+            {cvRejectModal.name && <p className={styles.rejectSub}>Student: <strong>{cvRejectModal.name}</strong></p>}
+            <textarea className={styles.rejectInput} value={cvRejectReason} onChange={e => setCvRejectReason(e.target.value)} placeholder="Tell the student what needs to be changed..." rows={4}/>
+            <div className={styles.rejectActions}>
+              <button className={styles.cancelBtn} onClick={() => setCvRejectModal(null)}>Cancel</button>
+              <button className={styles.dangerBtn} onClick={handleCvReject}>Reject</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Student Reject Modal ── */}
       {rejectModal && (
         <div className={styles.overlay} onClick={e => e.target===e.currentTarget && setRejectModal(null)}>
           <div className={styles.rejectBox}>
