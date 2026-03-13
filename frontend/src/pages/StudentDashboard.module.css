@@ -79,3 +79,39 @@
   .courseStats { grid-template-columns:repeat(2,1fr); }
   .courseStat:nth-child(2) { border-right:none; }
 }
+
+/* CV Banner */
+.cvBanner { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:16px 20px; border:1px solid; border-radius:var(--radius); margin-bottom:24px; flex-wrap:wrap; animation:fadeIn 0.4s ease both; }
+.cvBannerLeft { display:flex; align-items:center; gap:14px; }
+.cvBannerIcon { font-size:1.6rem; flex-shrink:0; }
+.cvBannerTitle { font-weight:700; color:var(--text-primary); font-size:0.95rem; margin-bottom:3px; }
+.cvBannerSub { font-size:0.78rem; color:var(--text-muted); }
+.rejectionReason { font-size:0.78rem; color:var(--danger); margin-top:4px; font-style:italic; }
+.cvBannerBtn { padding:10px 20px; background:var(--accent); border:none; border-radius:var(--radius-sm); color:white; font-size:0.875rem; font-weight:700; font-family:var(--font-body); white-space:nowrap; transition:all 0.15s; flex-shrink:0; }
+.cvBannerBtn:hover { background:var(--accent-hover); }
+.cvBannerBtnSecondary { padding:10px 20px; background:none; border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text-secondary); font-size:0.875rem; font-family:var(--font-body); white-space:nowrap; transition:all 0.15s; flex-shrink:0; }
+.cvBannerBtnSecondary:hover { border-color:var(--border-light); }
+
+/* Build CV button */
+.buildCvBtn { margin-top:12px; width:100%; padding:10px; background:var(--accent); border:none; border-radius:var(--radius-sm); color:white; font-size:0.875rem; font-weight:600; font-family:var(--font-body); transition:all 0.15s; }
+.buildCvBtn:hover { background:var(--accent-hover); }
+
+/* Lock badge in tab */
+.lockBadge { margin-left:6px; font-size:0.7rem; }
+
+/* Locked placement */
+.lockedPlacement { text-align:center; padding:80px 20px; }
+.lockIcon { font-size:3rem; margin-bottom:16px; }
+.lockedPlacement h3 { font-family:var(--font-display); font-size:1.2rem; color:var(--text-secondary); margin-bottom:10px; }
+.lockedPlacement p { font-size:0.875rem; color:var(--text-muted); max-width:400px; margin:0 auto 20px; line-height:1.7; }
+
+/* CV view modal */
+.cvViewOverlay { position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:1000; display:flex; align-items:center; justify-content:center; padding:24px; }
+.cvViewModal { width:100%; max-width:780px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); max-height:90vh; display:flex; flex-direction:column; }
+.cvViewHeader { display:flex; align-items:center; justify-content:space-between; padding:16px 24px; border-bottom:1px solid var(--border); flex-shrink:0; }
+.cvViewHeader h3 { font-family:var(--font-display); font-weight:700; color:var(--text-primary); }
+.downloadBtn { padding:7px 16px; background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.25); border-radius:var(--radius-sm); color:var(--success); font-size:0.8rem; font-family:var(--font-body); transition:all 0.15s; }
+.downloadBtn:hover { background:rgba(16,185,129,0.2); }
+.closeBtn { background:none; border:none; color:var(--text-muted); font-size:1.1rem; cursor:pointer; padding:4px 8px; border-radius:6px; transition:all 0.15s; }
+.closeBtn:hover { background:var(--bg-secondary); }
+.cvViewBody { overflow-y:auto; padding:24px; }

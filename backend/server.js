@@ -7,7 +7,8 @@ const app = express();
 connectDB();
 
 app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
-app.use(express.json());
+app.use(express.json({ limit: '20mb' }));
+app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', message: 'PlacePro API running' }));
 
@@ -17,6 +18,7 @@ app.use('/api/departments', require('./routes/departments'));
 app.use('/api/courses', require('./routes/courses'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/students', require('./routes/students'));
+app.use('/api/cv', require('./routes/cv'));
 
 app.use((req, res) => res.status(404).json({ success: false, message: 'Route not found' }));
 

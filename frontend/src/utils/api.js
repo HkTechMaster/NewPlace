@@ -36,6 +36,18 @@ export const studentAPI = {
   reject: (id, reason) => axios.put(`/students/${id}/reject`, { reason }),
 };
 
+export const cvAPI = {
+  getRequests: () => axios.get('/cv/requests'),
+  getStudentsList: () => axios.get('/cv/students-list'),
+  getById: (id) => axios.get(`/cv/${id}`),
+  getPendingById: (id) => axios.get(`/cv/pending/${id}`),
+  verify: (id) => axios.put(`/cv/${id}/verify`),
+  reject: (id, reason) => axios.put(`/cv/${id}/reject`, { reason }),
+  acceptUpdate: (id) => axios.put(`/cv/pending/${id}/accept`),
+  rejectUpdate: (id, reason) => axios.put(`/cv/pending/${id}/reject`, { reason }),
+  remind: (id) => axios.post(`/cv/${id}/remind`),
+};
+
 export const usersAPI = {
   getDeans: () => axios.get('/users/deans'),
   getStats: () => axios.get('/users/stats'),
