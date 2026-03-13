@@ -459,3 +459,63 @@
   .header { flex-direction: column; align-items: flex-start; }
   .grid { grid-template-columns: 1fr; }
 }
+
+/* Departments tab */
+.facultyDeptGroup { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:14px; overflow:hidden; }
+.facultyDeptHeader { display:flex; align-items:center; justify-content:space-between; padding:14px 20px; background:var(--bg-secondary); cursor:pointer; transition:background 0.15s; }
+.facultyDeptHeader:hover { background:rgba(255,255,255,0.03); }
+.facultyDeptTitle { display:flex; align-items:center; gap:10px; font-family:var(--font-display); font-size:0.95rem; font-weight:700; color:var(--text-primary); }
+.facultyCodeSmall { font-size:0.65rem; font-weight:800; letter-spacing:0.1em; color:var(--accent); background:rgba(59,130,246,0.1); border:1px solid rgba(59,130,246,0.2); padding:2px 8px; border-radius:4px; }
+.deptCountBadge { font-size:0.7rem; font-weight:600; color:var(--text-muted); background:var(--bg-card); border:1px solid var(--border); padding:2px 8px; border-radius:10px; }
+.deptCards { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:12px; padding:16px; }
+.deptCard { background:var(--bg-secondary); border:1px solid var(--border); border-radius:var(--radius-sm); padding:14px 16px; display:flex; flex-direction:column; gap:8px; }
+.deptCardTop { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
+.deptMeta { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.deptCode { font-size:0.65rem; font-weight:800; letter-spacing:0.1em; color:var(--success); background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.2); padding:2px 7px; border-radius:4px; }
+.deptName { font-weight:700; color:var(--text-primary); font-size:0.9rem; }
+.deptCardActions { display:flex; gap:5px; flex-shrink:0; }
+.viewDeptBtn { display:flex; align-items:center; padding:5px 9px; border-radius:var(--radius-sm); background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.2); color:var(--accent); cursor:pointer; transition:all 0.15s; }
+.viewDeptBtn:hover { background:rgba(59,130,246,0.15); }
+.editDeptBtn { display:flex; align-items:center; padding:5px 9px; border-radius:var(--radius-sm); background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.2); color:var(--gold); cursor:pointer; transition:all 0.15s; }
+.editDeptBtn:hover { background:rgba(245,158,11,0.15); }
+.chairRow { display:flex; align-items:center; gap:7px; font-size:0.78rem; color:var(--text-muted); }
+.chairName { color:var(--text-secondary); font-weight:600; }
+.chairEmail { color:var(--text-muted); font-size:0.72rem; }
+.deptFooter { padding-top:6px; border-top:1px solid var(--border); }
+.deptStat { font-size:0.7rem; color:var(--text-muted); }
+
+/* View dept modal */
+.viewModal { width:100%; max-width:620px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); box-shadow:0 24px 60px rgba(0,0,0,0.5); animation:fadeIn 0.2s ease both; max-height:85vh; overflow-y:auto; }
+.viewModalHeader { display:flex; align-items:flex-start; justify-content:space-between; padding:22px 24px 14px; border-bottom:1px solid var(--border); }
+.viewModalTitle { font-family:var(--font-display); font-size:1.2rem; font-weight:700; color:var(--text-primary); margin-top:6px; }
+.viewModalFaculty { font-size:0.75rem; color:var(--text-muted); margin-top:4px; }
+.closeXBtn { background:none; border:none; color:var(--text-muted); font-size:1.1rem; cursor:pointer; padding:4px 8px; border-radius:6px; transition:all 0.15s; flex-shrink:0; }
+.closeXBtn:hover { background:var(--bg-secondary); }
+.viewChairRow { display:flex; align-items:center; gap:14px; padding:14px 24px; background:var(--bg-secondary); border-bottom:1px solid var(--border); }
+.viewChairAvatar { width:40px; height:40px; border-radius:50%; background:linear-gradient(135deg,var(--gold),#d97706); color:#000; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1rem; font-family:var(--font-display); flex-shrink:0; }
+.viewChairName { font-weight:700; color:var(--text-primary); font-size:0.9rem; }
+.viewChairEmail { font-size:0.73rem; color:var(--text-muted); }
+.viewChairRole { font-size:0.62rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--gold); margin-top:2px; }
+.viewCoursesSection { padding:18px 24px; display:flex; flex-direction:column; gap:12px; }
+.viewSectionTitle { font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-muted); }
+.viewEmpty { font-size:0.83rem; color:var(--text-muted); padding:16px; text-align:center; }
+.viewCourseCard { background:var(--bg-secondary); border:1px solid var(--border); border-radius:var(--radius-sm); padding:12px 14px; display:flex; flex-direction:column; gap:8px; }
+.viewCourseTop { display:flex; align-items:center; gap:8px; }
+.viewCourseName { font-weight:700; color:var(--text-primary); font-size:0.9rem; }
+.viewCourseStats { display:flex; gap:12px; flex-wrap:wrap; font-size:0.72rem; color:var(--text-muted); }
+.viewCoordList { display:flex; flex-wrap:wrap; gap:7px; padding-top:8px; border-top:1px solid var(--border); }
+.viewCoordItem { display:flex; align-items:center; gap:6px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-sm); padding:4px 9px; }
+.viewCoordAvatar { width:20px; height:20px; border-radius:50%; background:rgba(16,185,129,0.15); color:var(--success); display:flex; align-items:center; justify-content:center; font-size:0.6rem; font-weight:700; flex-shrink:0; }
+.viewCoordName { font-size:0.75rem; font-weight:600; color:var(--text-primary); }
+.viewCoordSub { font-size:0.67rem; color:var(--text-muted); }
+
+/* Edit dept request form */
+.editRequestNotice { font-size:0.8rem; color:var(--text-muted); background:rgba(245,158,11,0.07); border:1px solid rgba(245,158,11,0.2); border-radius:var(--radius-sm); padding:10px 14px; margin-bottom:16px; line-height:1.6; }
+.editDeptGrid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:18px; }
+.editField { display:flex; flex-direction:column; gap:5px; }
+.editField label { font-size:0.73rem; font-weight:600; color:var(--text-secondary); }
+.editInput { background:var(--bg-secondary); border:1px solid var(--border); border-radius:var(--radius-sm); padding:9px 12px; color:var(--text-primary); font-size:0.875rem; font-family:var(--font-body); }
+.editInput:focus { border-color:var(--accent); outline:none; }
+.editDeptSubmitBtn { padding:9px 20px; background:var(--gold); border:none; border-radius:var(--radius-sm); color:#000; font-size:0.875rem; font-weight:700; font-family:var(--font-body); transition:all 0.15s; }
+.editDeptSubmitBtn:hover:not(:disabled) { background:#d97706; }
+.editDeptSubmitBtn:disabled { opacity:0.6; cursor:not-allowed; }
