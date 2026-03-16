@@ -21,25 +21,32 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('faculties');
 
   // Dept view/edit
-  const [viewDeptModal, setViewDeptModal] = useState(null); // { faculty, dept, index }
-  const [editDeptModal, setEditDeptModal] = useState(null); // { faculty, dept, index }
+  const [viewDeptModal, setViewDeptModal] = useState(null);
+  const [editDeptModal, setEditDeptModal] = useState(null);
   const [editDeptForm, setEditDeptForm] = useState(BLANK_DEPT_EDIT);
   const [editDeptLoading, setEditDeptLoading] = useState(false);
-  const [expandedFaculty, setExpandedFaculty] = useState({});
+  const [selectedFacultyId, setSelectedFacultyId] = useState(null);
+  const [requestHistory, setRequestHistory] = useState([]);
 
   useEffect(() => { fetchData(); }, []);
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [facRes, statsRes, courseRes] = await Promise.all([
+      const [facRes, statsRes, courseRes, histRes] = await Promise.all([
         skillFacultyAPI.getAll(),
         usersAPI.getStats(),
         courseAPI.getAll(),
+        departmentAPI.getAdminHistory().catch(() => ({ data: { requests: [] } })),
       ]);
       setFaculties(facRes.data.faculties);
       setStats(statsRes.data.stats);
       setCourses(courseRes.data.courses || []);
+      setRequestHistory(histRes.data.requests || []);
+      // Auto-select first faculty for departments tab
+      if (facRes.data.faculties?.length && !selectedFacultyId) {
+        setSelectedFacultyId(facRes.data.faculties[0]._id);
+      }
     } catch { toast.error('Failed to load data'); }
     finally { setLoading(false); }
   };
@@ -177,57 +184,108 @@ export default function AdminDashboard() {
           {/* ── DEPARTMENTS TAB ── */}
           {activeTab === 'departments' && (
             <div>
-              {faculties.filter(f => f.departments?.length > 0).length === 0 ? (
-                <div className={styles.emptyState}><div className={styles.emptyIcon}>◫</div><h3>No Departments Yet</h3><p>Departments are added by Deans or through edit requests.</p></div>
-              ) : faculties.map(faculty => (
-                faculty.departments?.length > 0 && (
-                  <div key={faculty._id} className={styles.facultyDeptGroup}>
-                    <div className={styles.facultyDeptHeader} onClick={() => setExpandedFaculty(p => ({...p, [faculty._id]: !p[faculty._id]}))}>
-                      <div className={styles.facultyDeptTitle}>
-                        <span className={styles.facultyCodeSmall}>{faculty.code}</span>
-                        {faculty.name}
-                        <span className={styles.deptCountBadge}>{faculty.departments.length} dept{faculty.departments.length!==1?'s':''}</span>
+              {faculties.length === 0 ? (
+                <div className={styles.emptyState}><div className={styles.emptyIcon}>◫</div><h3>No Faculties Yet</h3><p>Create a skill faculty first to manage departments.</p></div>
+              ) : (<>
+                {/* Faculty selector boxes */}
+                <div className={styles.facultyBoxRow}>
+                  {faculties.map(f => (
+                    <button
+                      key={f._id}
+                      className={`${styles.facultyBox} ${selectedFacultyId===f._id ? styles.facultyBoxActive : ''}`}
+                      onClick={() => setSelectedFacultyId(f._id)}
+                    >
+                      <span className={styles.facultyBoxCode}>{f.code}</span>
+                      <span className={styles.facultyBoxName}>{f.name}</span>
+                      <span className={styles.facultyBoxCount}>{f.departments?.length||0} dept{f.departments?.length!==1?'s':''}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Selected faculty departments */}
+                {(() => {
+                  const selFac = faculties.find(f => f._id === selectedFacultyId);
+                  if (!selFac) return null;
+                  return (
+                    <div className={styles.selectedFacSection}>
+                      <div className={styles.selectedFacHeader}>
+                        <div>
+                          <span className={styles.selectedFacCode}>{selFac.code}</span>
+                          <span className={styles.selectedFacName}>{selFac.name}</span>
+                        </div>
+                        <span className={styles.deptCountBadge}>{selFac.departments?.length||0} departments</span>
                       </div>
-                      <svg viewBox="0 0 20 20" fill="currentColor" width="16" style={{transform:expandedFaculty[faculty._id]===false?'none':'rotate(180deg)',transition:'0.2s',color:'var(--text-muted)'}}><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd"/></svg>
+                      {!selFac.departments?.length ? (
+                        <div className={styles.emptyState} style={{padding:'30px',border:'none'}}><p style={{margin:0}}>No departments in this faculty yet. Ask the Dean to add them.</p></div>
+                      ) : (
+                        <div className={styles.deptCards}>
+                          {selFac.departments.map((dept, idx) => {
+                            const deptCourses = coursesForDept(dept);
+                            return (
+                              <div key={idx} className={styles.deptCard}>
+                                <div className={styles.deptCardTop}>
+                                  <div className={styles.deptMeta}>
+                                    {dept.code && <span className={styles.deptCode}>{dept.code}</span>}
+                                    <span className={styles.deptName}>{dept.name}</span>
+                                  </div>
+                                  <div className={styles.deptCardActions}>
+                                    <button className={styles.viewDeptBtn} onClick={() => setViewDeptModal({ faculty:selFac, dept, index:idx })} title="View">
+                                      <svg viewBox="0 0 20 20" fill="currentColor" width="13"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/><path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd"/></svg>
+                                    </button>
+                                    <button className={styles.editDeptBtn} onClick={() => openDeptEdit(selFac, dept, idx)} title="Request edit">
+                                      <svg viewBox="0 0 20 20" fill="currentColor" width="13"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>
+                                    </button>
+                                  </div>
+                                </div>
+                                {(dept.chairpersonName||dept.chairpersonEmail) && (
+                                  <div className={styles.chairRow}>
+                                    <svg viewBox="0 0 20 20" fill="currentColor" width="11"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"/></svg>
+                                    <span className={styles.chairName}>{dept.chairpersonName}</span>
+                                    {dept.chairpersonEmail && <span className={styles.chairEmail}> · {dept.chairpersonEmail}</span>}
+                                  </div>
+                                )}
+                                <div className={styles.deptFooter}>
+                                  <span className={styles.deptStat}>{deptCourses.length} course{deptCourses.length!==1?'s':''}</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Request history for this faculty */}
+                      {(() => {
+                        const facHistory = requestHistory.filter(r => (r.skillFaculty?._id||r.skillFaculty) === selFac._id);
+                        if (!facHistory.length) return null;
+                        return (
+                          <div className={styles.reqHistorySection}>
+                            <div className={styles.reqHistoryTitle}>Edit Request History</div>
+                            {facHistory.map(req => (
+                              <div key={req._id} className={`${styles.reqHistoryRow} ${styles[req.status]}`}>
+                                <div className={styles.reqHistoryLeft}>
+                                  <div className={styles.reqHistoryDept}>
+                                    {req.isEdit && <span className={styles.editTag}>EDIT</span>}
+                                    {req.department?.name}
+                                    {req.department?.code && <span className={styles.reqCode}> ({req.department.code})</span>}
+                                  </div>
+                                  {req.department?.chairpersonName && <div className={styles.reqChair}>Chair: {req.department.chairpersonName} · {req.department.chairpersonEmail}</div>}
+                                  <div className={styles.reqDate}>{new Date(req.createdAt).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
+                                </div>
+                                <div className={styles.reqHistoryRight}>
+                                  <span className={`${styles.reqStatusPill} ${styles[req.status]}`}>{req.status}</span>
+                                  {req.status==='rejected' && req.rejectionReason && (
+                                    <div className={styles.reqRejectionReason}>Dean said: "{req.rejectionReason}"</div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })()}
                     </div>
-                    {expandedFaculty[faculty._id] !== false && (
-                      <div className={styles.deptCards}>
-                        {faculty.departments.map((dept, idx) => {
-                          const deptCourses = coursesForDept(dept);
-                          return (
-                            <div key={idx} className={styles.deptCard}>
-                              <div className={styles.deptCardTop}>
-                                <div className={styles.deptMeta}>
-                                  {dept.code && <span className={styles.deptCode}>{dept.code}</span>}
-                                  <span className={styles.deptName}>{dept.name}</span>
-                                </div>
-                                <div className={styles.deptCardActions}>
-                                  <button className={styles.viewDeptBtn} onClick={() => setViewDeptModal({ faculty, dept, index: idx })} title="View">
-                                    <svg viewBox="0 0 20 20" fill="currentColor" width="13"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/><path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd"/></svg>
-                                  </button>
-                                  <button className={styles.editDeptBtn} onClick={() => openDeptEdit(faculty, dept, idx)} title="Request edit">
-                                    <svg viewBox="0 0 20 20" fill="currentColor" width="13"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>
-                                  </button>
-                                </div>
-                              </div>
-                              {(dept.chairpersonName || dept.chairpersonEmail) && (
-                                <div className={styles.chairRow}>
-                                  <svg viewBox="0 0 20 20" fill="currentColor" width="11"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"/></svg>
-                                  <span className={styles.chairName}>{dept.chairpersonName}</span>
-                                  {dept.chairpersonEmail && <span className={styles.chairEmail}> · {dept.chairpersonEmail}</span>}
-                                </div>
-                              )}
-                              <div className={styles.deptFooter}>
-                                <span className={styles.deptStat}>{deptCourses.length} course{deptCourses.length!==1?'s':''}</span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )
-              ))}
+                  );
+                })()}
+              </>)}
             </div>
           )}
         </>)}

@@ -110,12 +110,11 @@ router.post('/google', async (req, res) => {
       }
     }
 
-    // ── Totally new user → needs registration form ────────────────────
+    // ── Totally new user on STAFF login → Access Denied ─────────
     return res.json({
       success: false,
-      status: 'needs_registration',
-      message: 'Email not found. Please complete student registration.',
-      googleUser: { googleId, googleEmail: email, googleName: name, googleAvatar: picture },
+      status: 'access_denied',
+      message: 'This email is not registered in the system. Staff accounts are created by Super Admin. If you are a student, please use the Student Login page.',
     });
 
   } catch (error) {

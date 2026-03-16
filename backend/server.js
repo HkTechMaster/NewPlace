@@ -13,6 +13,7 @@ app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 app.get('/api/health', (req, res) => res.json({ status: 'ok', message: 'PlacePro API running' }));
 
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/student-auth', require('./routes/studentAuth'));
 app.use('/api/skill-faculties', require('./routes/skillFaculties'));
 app.use('/api/departments', require('./routes/departments'));
 app.use('/api/courses', require('./routes/courses'));

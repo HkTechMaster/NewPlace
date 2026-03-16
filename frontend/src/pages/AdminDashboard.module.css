@@ -519,3 +519,35 @@
 .editDeptSubmitBtn { padding:9px 20px; background:var(--gold); border:none; border-radius:var(--radius-sm); color:#000; font-size:0.875rem; font-weight:700; font-family:var(--font-body); transition:all 0.15s; }
 .editDeptSubmitBtn:hover:not(:disabled) { background:#d97706; }
 .editDeptSubmitBtn:disabled { opacity:0.6; cursor:not-allowed; }
+
+/* Faculty selector boxes */
+.facultyBoxRow { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px; }
+.facultyBox { display:flex; flex-direction:column; align-items:flex-start; gap:4px; padding:14px 18px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); cursor:pointer; transition:all 0.15s; min-width:160px; text-align:left; }
+.facultyBox:hover { border-color:var(--border-light); background:var(--bg-secondary); }
+.facultyBoxActive { border-color:var(--accent) !important; background:rgba(59,130,246,0.07) !important; box-shadow:0 0 16px rgba(59,130,246,0.1); }
+.facultyBoxCode { font-size:0.65rem; font-weight:800; letter-spacing:0.1em; color:var(--accent); background:rgba(59,130,246,0.1); border:1px solid rgba(59,130,246,0.2); padding:2px 8px; border-radius:4px; }
+.facultyBoxName { font-family:var(--font-display); font-size:0.875rem; font-weight:700; color:var(--text-primary); }
+.facultyBoxCount { font-size:0.7rem; color:var(--text-muted); }
+
+/* Selected faculty section */
+.selectedFacSection { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+.selectedFacHeader { display:flex; align-items:center; justify-content:space-between; padding:14px 20px; background:var(--bg-secondary); border-bottom:1px solid var(--border); }
+.selectedFacCode { font-size:0.65rem; font-weight:800; letter-spacing:0.1em; color:var(--accent); background:rgba(59,130,246,0.1); border:1px solid rgba(59,130,246,0.2); padding:2px 8px; border-radius:4px; margin-right:10px; }
+.selectedFacName { font-family:var(--font-display); font-size:1rem; font-weight:700; color:var(--text-primary); }
+
+/* Request history */
+.reqHistorySection { border-top:1px solid var(--border); padding:16px 20px; }
+.reqHistoryTitle { font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-muted); margin-bottom:12px; }
+.reqHistoryRow { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:12px 14px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:var(--radius-sm); margin-bottom:8px; flex-wrap:wrap; }
+.reqHistoryRow:last-child { margin-bottom:0; }
+.reqHistoryLeft { display:flex; flex-direction:column; gap:4px; }
+.reqHistoryDept { font-size:0.875rem; font-weight:600; color:var(--text-primary); }
+.reqCode { font-size:0.75rem; color:var(--text-muted); }
+.reqChair { font-size:0.75rem; color:var(--text-muted); }
+.reqDate { font-size:0.7rem; color:var(--text-muted); }
+.reqHistoryRight { display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
+.reqStatusPill { font-size:0.65rem; font-weight:700; text-transform:uppercase; padding:3px 10px; border-radius:10px; }
+.reqStatusPill.pending  { background:rgba(245,158,11,0.12); color:var(--warning); border:1px solid rgba(245,158,11,0.25); }
+.reqStatusPill.approved { background:rgba(16,185,129,0.1); color:var(--success); border:1px solid rgba(16,185,129,0.2); }
+.reqStatusPill.rejected { background:rgba(239,68,68,0.08); color:var(--danger); border:1px solid rgba(239,68,68,0.2); }
+.reqRejectionReason { font-size:0.73rem; color:var(--danger); font-style:italic; max-width:280px; text-align:right; }

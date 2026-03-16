@@ -57,6 +57,11 @@ export const AuthProvider = ({ children }) => {
     return data;
   };
 
+  const loginWithToken = (token, userData) => {
+    setAuthToken(token);
+    setUser(userData);
+  };
+
   const logout = async () => {
     try {
       await axios.post('/auth/logout');
@@ -66,7 +71,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, loginWithGoogle, logout, fetchCurrentUser }}>
+    <AuthContext.Provider value={{ user, loading, loginWithGoogle, loginWithToken, logout, fetchCurrentUser }}>
       {children}
     </AuthContext.Provider>
   );

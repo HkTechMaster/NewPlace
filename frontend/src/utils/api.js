@@ -17,7 +17,7 @@ export const departmentAPI = {
   getAllRequests: () => axios.get('/departments/requests/all'),
   approve: (id) => axios.put(`/departments/requests/${id}/approve`),
   reject: (id, reason) => axios.put(`/departments/requests/${id}/reject`, { reason }),
-  deleteDept: (facultyId, deptIndex) => axios.delete(`/departments/${facultyId}/${deptIndex}`),
+  getAdminHistory: () => axios.get('/departments/requests/admin-history'),
 };
 
 export const courseAPI = {
@@ -37,14 +37,19 @@ export const studentAPI = {
 };
 
 export const cvAPI = {
+  // Student
+  getMine: () => axios.get('/cv/mine'),
+  create: (data) => axios.post('/cv/create', data),
+  update: (id, data) => axios.put(`/cv/${id}`, data),
+  submit: (id) => axios.post(`/cv/${id}/submit`),
+  delete: (id) => axios.delete(`/cv/${id}`),
+  dismissReminder: (id) => axios.post(`/cv/${id}/dismiss-reminder`),
+  // Coordinator
   getRequests: () => axios.get('/cv/requests'),
   getStudentsList: () => axios.get('/cv/students-list'),
   getById: (id) => axios.get(`/cv/${id}`),
-  getPendingById: (id) => axios.get(`/cv/pending/${id}`),
   verify: (id) => axios.put(`/cv/${id}/verify`),
   reject: (id, reason) => axios.put(`/cv/${id}/reject`, { reason }),
-  acceptUpdate: (id) => axios.put(`/cv/pending/${id}/accept`),
-  rejectUpdate: (id, reason) => axios.put(`/cv/pending/${id}/reject`, { reason }),
   remind: (id) => axios.post(`/cv/${id}/remind`),
 };
 
