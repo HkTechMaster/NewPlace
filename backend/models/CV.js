@@ -8,89 +8,72 @@ const semesterResultSchema = new mongoose.Schema({
 
 const cvSchema = new mongoose.Schema({
   student: { type: mongoose.Schema.Types.ObjectId, ref: 'Student', required: true },
+  title: { type: String, default: 'My CV' }, // student-given name
 
-  // ── Personal (auto-filled + extras) ──
-  name: { type: String, trim: true },
-  email: { type: String, trim: true },
-  phone: { type: String, trim: true },
+  // Personal
+  name: { type: String, trim: true, default: '' },
+  email: { type: String, trim: true, default: '' },
+  phone: { type: String, trim: true, default: '' },
   altEmail: { type: String, trim: true, default: '' },
   altPhone: { type: String, trim: true, default: '' },
-  photo: { type: String, default: '' }, // base64
+  photo: { type: String, default: '' },
 
-  // ── Links ──
-  linkedin: { type: String, trim: true, default: '' },
-  github:   { type: String, trim: true, default: '' },
-  leetcode: { type: String, trim: true, default: '' },
+  // Links
+  linkedin: { type: String, default: '' },
+  github: { type: String, default: '' },
+  leetcode: { type: String, default: '' },
   otherLinks: [{ label: String, url: String }],
 
-  // ── Education ──
-  tenthSchool:      { type: String, trim: true, default: '' },
-  tenthBoard:       { type: String, trim: true, default: '' },
-  tenthPercent:     { type: String, trim: true, default: '' },
-  tenthYear:        { type: String, trim: true, default: '' },
-  tenthMarksheet:   { type: String, default: '' }, // base64
-
-  twelfthSchool:    { type: String, trim: true, default: '' },
-  twelfthBoard:     { type: String, trim: true, default: '' },
-  twelfthPercent:   { type: String, trim: true, default: '' },
-  twelfthYear:      { type: String, trim: true, default: '' },
+  // Education
+  tenthSchool: { type: String, default: '' },
+  tenthBoard: { type: String, default: '' },
+  tenthPercent: { type: String, default: '' },
+  tenthYear: { type: String, default: '' },
+  tenthMarksheet: { type: String, default: '' },
+  twelfthSchool: { type: String, default: '' },
+  twelfthBoard: { type: String, default: '' },
+  twelfthPercent: { type: String, default: '' },
+  twelfthYear: { type: String, default: '' },
   twelfthMarksheet: { type: String, default: '' },
-
-  // Graduation — auto from student record
   graduationCourse: { type: String, default: '' },
-  currentSemester:  { type: Number, default: 1 },
-  batch:            { type: String, default: '' },
-  semesterResults:  [semesterResultSchema], // filled if sem >= 4
-  overallCgpa:      { type: Number, default: null }, // auto-calculated if sem>=4, manual if 2-3
+  currentSemester: { type: Number, default: 1 },
+  batch: { type: String, default: '' },
+  semesterResults: [semesterResultSchema],
+  overallCgpa: { type: Number, default: null },
 
-  // ── Skills ──
-  technicalSkills: [{ type: String, trim: true }],
-  softSkills:      [{ type: String, trim: true }],
+  // Skills
+  technicalSkills: [String],
+  softSkills: [String],
 
-  // ── Projects ──
+  // Projects
   projects: [{
-    title:       { type: String, trim: true },
-    description: { type: String, trim: true },
-    startDate:   { type: String },
-    endDate:     { type: String },
-    link:        { type: String, trim: true, default: '' },
+    title: String, description: String,
+    startDate: String, endDate: String, link: String,
   }],
 
-  // ── Work Experience ──
+  // Work
   workExperience: [{
-    company:     { type: String, trim: true },
-    role:        { type: String, trim: true },
-    startDate:   { type: String },
-    endDate:     { type: String },
-    description: { type: String, trim: true, default: '' },
+    company: String, role: String,
+    startDate: String, endDate: String, description: String,
   }],
 
-  // ── Achievements & Certifications ──
+  // Achievements
   achievements: [{
-    title:       { type: String, trim: true },
-    issuer:      { type: String, trim: true, default: '' },
-    date:        { type: String, default: '' },
-    description: { type: String, trim: true, default: '' },
+    title: String, issuer: String, date: String, description: String,
   }],
 
-  // ── Verification ──
-  // 'draft' → not submitted yet
-  // 'pending' → submitted, waiting coordinator
-  // 'verified' → coordinator accepted
-  // 'rejected' → coordinator rejected
+  // Status per CV
+  // draft | pending | verified | rejected
   status: { type: String, enum: ['draft','pending','verified','rejected'], default: 'draft' },
+  rejectionReason: { type: String, default: '' },
+  verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Coordinator', default: null },
+  verifiedAt: { type: Date, default: null },
+  submittedAt: { type: Date, default: null },
 
-  // When student submits a new CV while already verified, we keep old verified
-  // by storing the pending submission separately via pendingVersion
-  hasPendingUpdate: { type: Boolean, default: false },
+  // Reminder from coordinator
+  reminderAt: { type: Date, default: null },
+  reminderDismissed: { type: Boolean, default: false },
 
-  rejectionReason:  { type: String, default: '' },
-  verifiedBy:       { type: mongoose.Schema.Types.ObjectId, ref: 'Coordinator', default: null },
-  verifiedAt:       { type: Date, default: null },
-  submittedAt:      { type: Date, default: null },
-
-  // For coordinator reminder
-  reminderSentAt:   { type: Date, default: null },
 }, { timestamps: true, collection: 'cvs' });
 
 module.exports = mongoose.model('CV', cvSchema);

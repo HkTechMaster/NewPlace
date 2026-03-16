@@ -27,6 +27,15 @@ const registerChairperson = async (dept, facultyId) => {
   return chair._id;
 };
 
+// GET departments for a faculty — PUBLIC for student registration
+router.get('/public/:facultyId', async (req, res) => {
+  try {
+    const faculty = await SkillFaculty.findById(req.params.facultyId).select('departments');
+    if (!faculty) return res.status(404).json({ success: false, message: 'Faculty not found' });
+    res.json({ success: true, departments: faculty.departments || [] });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+
 // Dean adds department directly (no approval)
 router.post('/direct', protect, async (req, res) => {
   try {
@@ -233,6 +242,17 @@ router.delete('/:facultyId/:deptIndex', protect, async (req, res) => {
     faculty.departments.splice(idx, 1);
     await faculty.save();
     res.json({ success: true, message: 'Department removed', faculty });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// GET all requests for admin (including accepted/rejected with reasons)
+router.get('/requests/admin-history', protect, async (req, res) => {
+  try {
+    if (req.user.role !== 'super_admin') return res.status(403).json({ success: false, message: 'Admin only' });
+    const requests = await DepartmentRequest.find()
+      .populate('skillFaculty', 'name code')
+      .sort({ createdAt: -1 });
+    res.json({ success: true, requests });
   } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 

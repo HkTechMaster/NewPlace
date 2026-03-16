@@ -3,6 +3,7 @@ import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
+import { cvAPI } from '../utils/api';
 import styles from './CVBuilder.module.css';
 
 const STEPS = [
@@ -21,11 +22,12 @@ const EMPTY_ACHIEVE  = { title:'', issuer:'', date:'', description:'' };
 const EMPTY_LINK     = { label:'', url:'' };
 const EMPTY_SEM      = (n) => ({ semester:n, cgpa:'', reAttempts:'' });
 
-export default function CVBuilder({ existingCV, onSaved }) {
+export default function CVBuilder({ existingCV, isNew, onSaved, onCancel }) {
   const { user } = useAuth();
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [cvTitle, setCvTitle] = useState(existingCV?.title || 'My CV');
   const photoRef = useRef();
 
   // ── Form state ──────────────────────────────────────────────────
@@ -136,6 +138,7 @@ export default function CVBuilder({ existingCV, onSaved }) {
 
   // Build full payload
   const buildPayload = () => ({
+    title: cvTitle,
     ...personal,
     ...education,
     technicalSkills: skills.technicalSkills,
@@ -151,9 +154,13 @@ export default function CVBuilder({ existingCV, onSaved }) {
   const handleSaveDraft = async () => {
     setSaving(true);
     try {
-      const endpoint = existingCV?.status === 'verified' ? '/cv/submit-update' : '/cv/save';
-      await axios.post(endpoint, buildPayload());
-      toast.success('Draft saved!');
+      if (isNew || !existingCV?._id) {
+        await cvAPI.create({ ...buildPayload(), status: 'draft' });
+        toast.success('CV created as draft!');
+      } else {
+        await cvAPI.update(existingCV._id, buildPayload());
+        toast.success('CV saved!');
+      }
       onSaved?.();
     } catch (e) { toast.error(e.response?.data?.message || 'Save failed'); }
     finally { setSaving(false); }
@@ -163,11 +170,21 @@ export default function CVBuilder({ existingCV, onSaved }) {
     if (!personal.name || !personal.email) { toast.error('Name and email required'); return; }
     setSubmitting(true);
     try {
-      const endpoint = existingCV?.status === 'verified' ? '/cv/submit-update' : '/cv/submit';
-      await axios.post(endpoint, buildPayload());
-      toast.success(existingCV?.status === 'verified' ? 'Updated CV sent for re-verification!' : 'CV submitted for verification!');
+      let cvId = existingCV?._id;
+      if (isNew || !cvId) {
+        const res = await cvAPI.create({ ...buildPayload(), status: 'draft' });
+        cvId = res.data.cv._id;
+      } else {
+        await cvAPI.update(cvId, buildPayload());
+      }
+      await cvAPI.submit(cvId);
+      toast.success('CV submitted for verification!');
       onSaved?.();
-    } catch (e) { toast.error(e.response?.data?.message || 'Submit failed'); }
+    } catch (e) {
+      const msg = e.response?.data?.message || e.message || 'Submit failed';
+      toast.error(msg);
+      console.error('CV Submit Error:', e.response?.data || e.message);
+    }
     finally { setSubmitting(false); }
   };
 
@@ -181,7 +198,17 @@ export default function CVBuilder({ existingCV, onSaved }) {
         {/* Sidebar steps */}
         <aside className={styles.sidebar}>
           <div className={styles.sidebarTitle}>
-            {isVerifiedResubmit ? '✏️ Update CV' : '📄 Build Your CV'}
+            {isNew ? '📄 New CV' : '✏️ Edit CV'}
+          </div>
+          {/* CV Title */}
+          <div className={styles.cvTitleField}>
+            <label style={{fontSize:'0.65rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em',color:'var(--text-muted)'}}>CV Name</label>
+            <input
+              style={{marginTop:4,background:'var(--bg-secondary)',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',padding:'7px 10px',color:'var(--text-primary)',fontSize:'0.825rem',fontFamily:'var(--font-body)',width:'100%'}}
+              value={cvTitle}
+              onChange={e => setCvTitle(e.target.value)}
+              placeholder="e.g. My CV, Software Dev CV..."
+            />
           </div>
           {STEPS.map((s, i) => (
             <button key={s.id} className={`${styles.stepBtn} ${i === step ? styles.stepActive : ''} ${i < step ? styles.stepDone : ''}`} onClick={() => setStep(i)}>
@@ -193,6 +220,9 @@ export default function CVBuilder({ existingCV, onSaved }) {
           <div className={styles.sidebarActions}>
             <button className={styles.saveDraftBtn} onClick={handleSaveDraft} disabled={saving}>
               {saving ? '...' : '💾 Save Draft'}
+            </button>
+            <button className={styles.saveDraftBtn} style={{marginTop:6,color:'var(--text-muted)'}} onClick={onCancel}>
+              ← Back
             </button>
           </div>
         </aside>
