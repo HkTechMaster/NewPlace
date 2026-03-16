@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { toast } from 'react-hot-toast';
+import React, { useState, useEffect } from 'react';import { toast } from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import { studentAPI, courseAPI, cvAPI } from '../utils/api';
@@ -46,6 +45,11 @@ export default function CoordinatorDashboard() {
     finally { setLoading(false); }
   };
 
+  const handleRemind = async (cvId, name) => {
+    try { await cvAPI.remind(cvId); toast.success(`Reminder sent to ${name}!`); fetchAll(); }
+    catch { toast.error('Failed'); }
+  };
+
   const totalApproved = Object.values(grouped).reduce((a, c) => a + Object.values(c.batches).reduce((b, s) => b + s.length, 0), 0);
   const totalCvRequests = (cvRequests.pendingCVs?.length || 0) + (cvRequests.pendingUpdates?.length || 0);
 
@@ -55,23 +59,14 @@ export default function CoordinatorDashboard() {
   };
   const handleCvReject = async () => {
     try {
-      if (cvRejectModal.isUpdate) await cvAPI.rejectUpdate(cvRejectModal.id, cvRejectReason);
-      else await cvAPI.reject(cvRejectModal.id, cvRejectReason);
+      await cvAPI.reject(cvRejectModal.id, cvRejectReason);
       toast.success('CV rejected'); setCvRejectModal(null); setCvRejectReason(''); fetchAll();
     } catch { toast.error('Failed'); }
   };
-  const handleCvAcceptUpdate = async (id) => {
-    try { await cvAPI.acceptUpdate(id); toast.success('Updated CV accepted!'); fetchAll(); }
-    catch (e) { toast.error(e.response?.data?.message || 'Failed'); }
-  };
-  const handleRemind = async (cvId, name) => {
-    try { await cvAPI.remind(cvId); toast.success(`Reminder sent to ${name}`); }
-    catch { toast.error('Failed'); }
-  };
-  const openCVView = async (cvId, isUpdate = false) => {
+  const openCVView = async (cvId, cvStatus) => {
     try {
-      const res = isUpdate ? await cvAPI.getPendingById(cvId) : await cvAPI.getById(cvId);
-      setViewCV({ data: isUpdate ? res.data.pending.data : res.data.cv, id: cvId, isUpdate });
+      const res = await cvAPI.getById(cvId);
+      setViewCV({ data: res.data.cv, id: cvId, status: cvStatus || res.data.cv.status });
     } catch { toast.error('Failed to load CV'); }
   };
 
@@ -132,7 +127,7 @@ export default function CoordinatorDashboard() {
             Students CV Status
           </button>
           <button className={`${styles.tab} ${activeTab==='students'?styles.tabActive:''}`} onClick={() => setActiveTab('students')}>
-            Students by Course
+            Login Students
           </button>
           <button className={`${styles.tab} ${activeTab==='courses'?styles.tabActive:''}`} onClick={() => setActiveTab('courses')}>
             My Courses ({courses.length})
@@ -183,62 +178,34 @@ export default function CoordinatorDashboard() {
           {/* ── CV REQUESTS TAB ── */}
           {activeTab === 'cv' && (
             <div className={styles.tabContent}>
-              {totalCvRequests === 0 ? (
+              {!cvRequests.pendingCVs?.length ? (
                 <div className={styles.empty}><div className={styles.emptyIcon}>📋</div><h3>No Pending CV Requests</h3><p>Student CV submissions will appear here.</p></div>
-              ) : (<>
-                {cvRequests.pendingCVs?.length > 0 && (<>
-                  <div className={styles.cvRequestSection}>First-time Submissions ({cvRequests.pendingCVs.length})</div>
-                  <div className={styles.pendingList}>
-                    {cvRequests.pendingCVs.map(cv => (
-                      <div key={cv._id} className={`${styles.pendingCard} ${styles.cvCard}`}>
-                        <div className={styles.pendingLeft}>
-                          {cv.student?.photo ? <img src={cv.student.photo} alt="" className={styles.studentPhoto}/> : <div className={styles.studentPhotoFallback}>{cv.student?.name?.charAt(0)}</div>}
-                          <div className={styles.pendingInfo}>
-                            <div className={styles.pendingName}>{cv.student?.name}</div>
-                            <div className={styles.pendingEmail}>{cv.student?.email}</div>
-                            <div className={styles.pendingMeta}>
-                              <span className={styles.metaTag}>{cv.student?.courseName}</span>
-                              <span className={styles.metaTag}>Batch {cv.student?.batch}</span>
-                              <span className={styles.metaTag}>Sem {cv.student?.semester}</span>
-                            </div>
-                            {cv.submittedAt && <div className={styles.enrollNo}>Submitted: {new Date(cv.submittedAt).toLocaleDateString('en-IN')}</div>}
+              ) : (
+                <div className={styles.pendingList}>
+                  {cvRequests.pendingCVs.map(cv => (
+                    <div key={cv._id} className={`${styles.pendingCard} ${styles.cvCard}`}>
+                      <div className={styles.pendingLeft}>
+                        {cv.student?.photo ? <img src={cv.student.photo} alt="" className={styles.studentPhoto}/> : <div className={styles.studentPhotoFallback}>{cv.student?.name?.charAt(0)}</div>}
+                        <div className={styles.pendingInfo}>
+                          <div className={styles.pendingName}>{cv.student?.name}</div>
+                          <div className={styles.pendingEmail}>{cv.student?.email}</div>
+                          <div className={styles.pendingMeta}>
+                            <span className={styles.metaTag}>{cv.student?.courseName}</span>
+                            <span className={styles.metaTag}>Batch {cv.student?.batch}</span>
+                            <span className={styles.metaTag}>Sem {cv.student?.semester}</span>
                           </div>
-                        </div>
-                        <div className={styles.pendingRight}>
-                          <button className={styles.viewBtn} onClick={() => openCVView(cv._id)}>View CV</button>
-                          <button className={styles.approveBtn} onClick={() => handleCvVerify(cv._id)}>✓ Verify</button>
-                          <button className={styles.rejectBtn} onClick={() => { setCvRejectModal({ id: cv._id, isUpdate: false, name: cv.student?.name }); setCvRejectReason(''); }}>✕ Reject</button>
+                          {cv.submittedAt && <div className={styles.enrollNo}>Submitted: {new Date(cv.submittedAt).toLocaleDateString('en-IN')}</div>}
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </>)}
-                {cvRequests.pendingUpdates?.length > 0 && (<>
-                  <div className={styles.cvRequestSection} style={{marginTop:16}}>CV Update Requests ({cvRequests.pendingUpdates.length})</div>
-                  <div className={styles.pendingList}>
-                    {cvRequests.pendingUpdates.map(upd => (
-                      <div key={upd._id} className={`${styles.pendingCard} ${styles.cvCard}`} style={{borderLeftColor:'var(--gold)'}}>
-                        <div className={styles.pendingLeft}>
-                          {upd.student?.photo ? <img src={upd.student.photo} alt="" className={styles.studentPhoto}/> : <div className={styles.studentPhotoFallback}>{upd.student?.name?.charAt(0)}</div>}
-                          <div className={styles.pendingInfo}>
-                            <div className={styles.pendingName}>{upd.student?.name} <span className={styles.updateTag}>UPDATE</span></div>
-                            <div className={styles.pendingEmail}>{upd.student?.email}</div>
-                            <div className={styles.pendingMeta}>
-                              <span className={styles.metaTag}>{upd.student?.courseName}</span>
-                              <span className={styles.metaTag}>Batch {upd.student?.batch}</span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className={styles.pendingRight}>
-                          <button className={styles.viewBtn} onClick={() => openCVView(upd._id, true)}>View New CV</button>
-                          <button className={styles.approveBtn} onClick={() => handleCvAcceptUpdate(upd._id)}>✓ Accept</button>
-                          <button className={styles.rejectBtn} onClick={() => { setCvRejectModal({ id: upd._id, isUpdate: true, name: upd.student?.name }); setCvRejectReason(''); }}>✕ Reject</button>
-                        </div>
+                      <div className={styles.pendingRight}>
+                        <button className={styles.viewBtn} onClick={() => openCVView(cv._id, 'pending')}>View CV</button>
+                        <button className={styles.approveBtn} onClick={() => handleCvVerify(cv._id)}>✓ Verify</button>
+                        <button className={styles.rejectBtn} onClick={() => { setCvRejectModal({ id: cv._id, name: cv.student?.name }); setCvRejectReason(''); }}>✕ Reject</button>
                       </div>
-                    ))}
-                  </div>
-                </>)}
-              </>)}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -253,45 +220,22 @@ export default function CoordinatorDashboard() {
                     <div className={styles.courseGroupTitle}>{courseName}</div>
                     <span className={styles.totalStudents}>{Object.values(batches).reduce((a,b)=>a+b.length,0)} students</span>
                   </div>
-                  {Object.entries(batches).map(([batch, students]) => (
-                    <div key={batch} className={styles.batchSection}>
-                      <div className={styles.batchHeader} onClick={() => toggleBatch(courseName, batch)}>
-                        <div className={styles.batchLeft}><span className={styles.batchIcon}>📋</span><span className={styles.batchName}>Batch {batch}</span></div>
-                        <div className={styles.batchRight}><span className={styles.batchCount}>{students.length} students</span></div>
-                      </div>
-                      <div className={styles.studentTable}>
-                        <div className={styles.tableHeader}><span>Student</span><span>Semester</span><span>CV Status</span><span>Actions</span></div>
-                        {students.map(s => {
-                          const statusMap = { no_cv:{ label:'No CV', color:'var(--text-muted)' }, draft:{ label:'Draft', color:'var(--text-muted)' }, pending:{ label:'⏳ Pending', color:'var(--warning)' }, verified:{ label:'✓ Verified', color:'var(--success)' }, rejected:{ label:'✗ Rejected', color:'var(--danger)' } };
-                          const st = statusMap[s.cvStatus] || statusMap.no_cv;
-                          return (
-                            <div key={s._id} className={styles.tableRow}>
-                              <div className={styles.tableStudent}>
-                                {s.photo ? <img src={s.photo} alt="" className={styles.tablePhoto}/> : <div className={styles.tablePhotoFallback}>{s.name?.charAt(0)}</div>}
-                                <div><div className={styles.tableName}>{s.name}{s.hasPendingUpdate && <span className={styles.updateTag}> UPDATE</span>}</div><div className={styles.tableEmail}>{s.email}</div></div>
-                              </div>
-                              <span className={styles.tableCell}>Sem {s.semester}</span>
-                              <span className={styles.tableCell} style={{color:st.color,fontWeight:600}}>{st.label}</span>
-                              <div style={{display:'flex',gap:6}}>
-                                {s.cvId && <button className={styles.viewBtn} onClick={() => openCVView(s.cvId)}>View CV</button>}
-                                {s.cvStatus === 'rejected' && s.cvId && <button className={styles.remindBtn} onClick={() => handleRemind(s.cvId, s.name)}>🔔 Remind</button>}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
+                  {/* Batch tabs */}
+                  <BatchTabs
+                    batches={batches}
+                    onViewCV={(cvId, status) => openCVView(cvId, status)}
+                    onRemind={(cvId, name) => handleRemind(cvId, name)}
+                  />
                 </div>
               ))}
             </div>
           )}
 
-          {/* ── STUDENTS BY COURSE TAB ── */}
+          {/* ── LOGIN STUDENTS TAB ── */}
           {activeTab === 'students' && (
             <div className={styles.tabContent}>
               {!Object.keys(grouped).length ? (
-                <div className={styles.empty}><div className={styles.emptyIcon}>👥</div><h3>No Active Students</h3><p>Approved students will appear here organized by course and batch.</p></div>
+                <div className={styles.empty}><div className={styles.emptyIcon}>👥</div><h3>No Active Students</h3><p>Approved students appear here organized by course and batch.</p></div>
               ) : Object.values(grouped).map(courseGroup => (
                 <div key={courseGroup.courseId} className={styles.courseGroup}>
                   <div className={styles.courseGroupHeader}>
@@ -301,53 +245,7 @@ export default function CoordinatorDashboard() {
                     </div>
                     <span className={styles.totalStudents}>{Object.values(courseGroup.batches).reduce((a,b)=>a+b.length,0)} students</span>
                   </div>
-                  {Object.entries(courseGroup.batches).map(([batch, students]) => {
-                    const key = `${courseGroup.courseId}_${batch}`;
-                    const isOpen = expandedBatch[key] !== false; // open by default
-                    return (
-                      <div key={batch} className={styles.batchSection}>
-                        <button className={styles.batchHeader} onClick={() => toggleBatch(courseGroup.courseId, batch)}>
-                          <div className={styles.batchLeft}>
-                            <span className={styles.batchIcon}>📋</span>
-                            <span className={styles.batchName}>Batch {batch}</span>
-                          </div>
-                          <div className={styles.batchRight}>
-                            <span className={styles.batchCount}>{students.length} student{students.length!==1?'s':''}</span>
-                            <svg viewBox="0 0 20 20" fill="currentColor" width="14" style={{transform:isOpen?'rotate(180deg)':'none',transition:'0.2s'}}><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd"/></svg>
-                          </div>
-                        </button>
-                        {isOpen && (
-                          <div className={styles.studentTable}>
-                            <div className={styles.tableHeader}>
-                              <span>Student</span>
-                              <span>Semester</span>
-                              <span>Phone</span>
-                              <span>Enroll No.</span>
-                              <span></span>
-                            </div>
-                            {students.map(s => (
-                              <div key={s._id} className={styles.tableRow}>
-                                <div className={styles.tableStudent}>
-                                  {s.photo
-                                    ? <img src={s.photo} alt="" className={styles.tablePhoto}/>
-                                    : <div className={styles.tablePhotoFallback}>{s.name.charAt(0)}</div>
-                                  }
-                                  <div>
-                                    <div className={styles.tableName}>{s.name}</div>
-                                    <div className={styles.tableEmail}>{s.email}</div>
-                                  </div>
-                                </div>
-                                <span className={styles.tableCell}>Sem {s.semester}</span>
-                                <span className={styles.tableCell}>{s.phone || '—'}</span>
-                                <span className={styles.tableCell}>{s.enrollmentNo || '—'}</span>
-                                <button className={styles.viewBtn} onClick={() => setViewStudent(s)}>View</button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                  <LoginStudentsBatchTabs batches={courseGroup.batches} onView={setViewStudent}/>
                 </div>
               ))}
             </div>
@@ -443,23 +341,22 @@ export default function CoordinatorDashboard() {
         <div className={styles.overlay} onClick={e => e.target===e.currentTarget && setViewCV(null)}>
           <div className={styles.studentModal} style={{maxWidth:780}}>
             <div className={styles.studentModalHeader}>
-              <h3>{viewCV.isUpdate ? 'Updated CV Submission' : 'Student CV'}</h3>
+              <h3>Student CV {viewCV.status === 'verified' && <span style={{fontSize:'0.65rem',color:'var(--success)',background:'rgba(16,185,129,0.1)',border:'1px solid rgba(16,185,129,0.25)',padding:'2px 8px',borderRadius:6,marginLeft:8}}>✓ Verified</span>}</h3>
               <button className={styles.closeBtn} onClick={() => setViewCV(null)}>✕</button>
             </div>
             <div style={{overflow:'auto',padding:24,maxHeight:'70vh'}}>
               <CVPreview data={viewCV.data}/>
             </div>
-            {!viewCV.isUpdate && (
+            {/* Only show verify/reject if CV is pending */}
+            {viewCV.status === 'pending' && (
               <div className={styles.studentModalFooter}>
                 <button className={styles.approveBtn} onClick={() => { handleCvVerify(viewCV.id); setViewCV(null); }}>✓ Verify CV</button>
-                <button className={styles.rejectBtn} onClick={() => { setCvRejectModal({ id: viewCV.id, isUpdate: false, name: '' }); setViewCV(null); }}>✕ Reject</button>
+                <button className={styles.rejectBtn} onClick={() => { setCvRejectModal({ id: viewCV.id, name: '' }); setViewCV(null); }}>✕ Reject</button>
                 <button className={styles.cancelBtn} onClick={() => setViewCV(null)}>Close</button>
               </div>
             )}
-            {viewCV.isUpdate && (
+            {viewCV.status !== 'pending' && (
               <div className={styles.studentModalFooter}>
-                <button className={styles.approveBtn} onClick={() => { handleCvAcceptUpdate(viewCV.id); setViewCV(null); }}>✓ Accept Update</button>
-                <button className={styles.rejectBtn} onClick={() => { setCvRejectModal({ id: viewCV.id, isUpdate: true, name: '' }); setViewCV(null); }}>✕ Reject Update</button>
                 <button className={styles.cancelBtn} onClick={() => setViewCV(null)}>Close</button>
               </div>
             )}
@@ -471,7 +368,7 @@ export default function CoordinatorDashboard() {
       {cvRejectModal && (
         <div className={styles.overlay} onClick={e => e.target===e.currentTarget && setCvRejectModal(null)}>
           <div className={styles.rejectBox}>
-            <h3 className={styles.rejectTitle}>{cvRejectModal.isUpdate ? 'Reject CV Update' : 'Reject CV'}</h3>
+            <h3 className={styles.rejectTitle}>Reject CV</h3>
             {cvRejectModal.name && <p className={styles.rejectSub}>Student: <strong>{cvRejectModal.name}</strong></p>}
             <textarea className={styles.rejectInput} value={cvRejectReason} onChange={e => setCvRejectReason(e.target.value)} placeholder="Tell the student what needs to be changed..." rows={4}/>
             <div className={styles.rejectActions}>
@@ -495,6 +392,109 @@ export default function CoordinatorDashboard() {
             </div>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+// ── CV Status BatchTabs ──────────────────────────────────────────────────────
+function BatchTabs({ batches, onViewCV, onRemind }) {
+  const batchKeys = Object.keys(batches);
+  const [active, setActive] = React.useState(batchKeys[0] || '');
+  const students = batches[active] || [];
+  const statusMap = {
+    no_cv:   { label:'No CV',      color:'var(--text-muted)' },
+    draft:   { label:'Draft',      color:'var(--text-muted)' },
+    pending: { label:'⏳ Pending', color:'var(--warning)'    },
+    verified:{ label:'✓ Verified', color:'var(--success)'    },
+    rejected:{ label:'✗ Rejected', color:'var(--danger)'     },
+  };
+  const pill = (b) => ({
+    padding:'5px 14px', borderRadius:20, fontFamily:'var(--font-body)',
+    fontSize:'0.78rem', fontWeight:700, border:'1px solid', cursor:'pointer', transition:'all 0.15s',
+    background: active===b ? 'var(--accent)' : 'var(--bg-secondary)',
+    color: active===b ? 'white' : 'var(--text-muted)',
+    borderColor: active===b ? 'var(--accent)' : 'var(--border)',
+  });
+  return (
+    <div>
+      <div style={{display:'flex',gap:8,padding:'12px 16px',borderBottom:'1px solid var(--border)',flexWrap:'wrap'}}>
+        {batchKeys.map(b => <button key={b} onClick={()=>setActive(b)} style={pill(b)}>{b} <span style={{opacity:0.7,fontWeight:400}}>({batches[b].length})</span></button>)}
+      </div>
+      {!students.length ? <div style={{padding:'20px',textAlign:'center',fontSize:'0.825rem',color:'var(--text-muted)'}}>No students in this batch</div> : (
+        <table style={{width:'100%',borderCollapse:'collapse'}}>
+          <thead><tr style={{fontSize:'0.65rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em',color:'var(--text-muted)',borderBottom:'1px solid var(--border)'}}>
+            <th style={{padding:'8px 16px',textAlign:'left'}}>Student</th>
+            <th style={{padding:'8px 16px',textAlign:'left'}}>Sem</th>
+            <th style={{padding:'8px 16px',textAlign:'left'}}>CV Status</th>
+            <th style={{padding:'8px 16px',textAlign:'left'}}>Actions</th>
+          </tr></thead>
+          <tbody>{students.map(s => {
+            const st = statusMap[s.cvStatus]||statusMap.no_cv;
+            return (<tr key={s._id} style={{borderBottom:'1px solid var(--border)'}} onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.02)'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+              <td style={{padding:'10px 16px'}}>
+                <div style={{display:'flex',alignItems:'center',gap:10}}>
+                  {s.photo ? <img src={s.photo} alt="" style={{width:30,height:30,borderRadius:'50%',objectFit:'cover',flexShrink:0}}/> : <div style={{width:30,height:30,borderRadius:'50%',background:'linear-gradient(135deg,#8b5cf6,#6d28d9)',color:'white',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'0.75rem',fontWeight:700,flexShrink:0}}>{s.name?.charAt(0)}</div>}
+                  <div><div style={{fontSize:'0.875rem',fontWeight:600,color:'var(--text-primary)'}}>{s.name}</div><div style={{fontSize:'0.7rem',color:'var(--text-muted)'}}>{s.email}</div></div>
+                </div>
+              </td>
+              <td style={{padding:'10px 16px',fontSize:'0.825rem',color:'var(--text-secondary)'}}>Sem {s.semester}</td>
+              <td style={{padding:'10px 16px',fontSize:'0.825rem',fontWeight:600,color:st.color}}>{st.label}</td>
+              <td style={{padding:'10px 16px'}}>
+                <div style={{display:'flex',gap:6}}>
+                  {s.cvId && <button onClick={()=>onViewCV(s.cvId,s.cvStatus)} style={{padding:'5px 12px',background:'rgba(59,130,246,0.08)',border:'1px solid rgba(59,130,246,0.2)',borderRadius:'var(--radius-sm)',color:'var(--accent)',fontSize:'0.75rem',fontFamily:'var(--font-body)',cursor:'pointer'}}>View CV</button>}
+                  {s.cvStatus==='rejected' && s.cvId && <button onClick={()=>onRemind(s.cvId,s.name)} style={{padding:'5px 12px',background:'rgba(245,158,11,0.08)',border:'1px solid rgba(245,158,11,0.2)',borderRadius:'var(--radius-sm)',color:'var(--gold)',fontSize:'0.75rem',fontFamily:'var(--font-body)',cursor:'pointer'}}>🔔 Remind</button>}
+                </div>
+              </td>
+            </tr>);
+          })}</tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
+// ── Login Students BatchTabs ─────────────────────────────────────────────────
+function LoginStudentsBatchTabs({ batches, onView }) {
+  const batchKeys = Object.keys(batches);
+  const [active, setActive] = React.useState(batchKeys[0] || '');
+  const students = batches[active] || [];
+  const pill = (b) => ({
+    padding:'5px 14px', borderRadius:20, fontFamily:'var(--font-body)',
+    fontSize:'0.78rem', fontWeight:700, border:'1px solid', cursor:'pointer', transition:'all 0.15s',
+    background: active===b ? 'rgba(139,92,246,0.2)' : 'var(--bg-secondary)',
+    color: active===b ? '#a78bfa' : 'var(--text-muted)',
+    borderColor: active===b ? 'rgba(139,92,246,0.4)' : 'var(--border)',
+  });
+  return (
+    <div>
+      <div style={{display:'flex',gap:8,padding:'12px 16px',borderBottom:'1px solid var(--border)',flexWrap:'wrap'}}>
+        {batchKeys.map(b => <button key={b} onClick={()=>setActive(b)} style={pill(b)}>{b} <span style={{opacity:0.7,fontWeight:400}}>({batches[b].length})</span></button>)}
+      </div>
+      {!students.length ? <div style={{padding:'20px',textAlign:'center',fontSize:'0.825rem',color:'var(--text-muted)'}}>No students in this batch</div> : (
+        <table style={{width:'100%',borderCollapse:'collapse'}}>
+          <thead><tr style={{fontSize:'0.65rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em',color:'var(--text-muted)',borderBottom:'1px solid var(--border)'}}>
+            <th style={{padding:'8px 16px',textAlign:'left'}}>Student</th>
+            <th style={{padding:'8px 16px',textAlign:'left'}}>Semester</th>
+            <th style={{padding:'8px 16px',textAlign:'left'}}>Phone</th>
+            <th style={{padding:'8px 16px',textAlign:'left'}}>Enroll No.</th>
+            <th style={{padding:'8px 16px'}}></th>
+          </tr></thead>
+          <tbody>{students.map(s => (
+            <tr key={s._id} style={{borderBottom:'1px solid var(--border)'}} onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.02)'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+              <td style={{padding:'10px 16px'}}>
+                <div style={{display:'flex',alignItems:'center',gap:10}}>
+                  {s.photo ? <img src={s.photo} alt="" style={{width:30,height:30,borderRadius:'50%',objectFit:'cover',flexShrink:0}}/> : <div style={{width:30,height:30,borderRadius:'50%',background:'linear-gradient(135deg,#8b5cf6,#6d28d9)',color:'white',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'0.75rem',fontWeight:700,flexShrink:0}}>{s.name?.charAt(0)}</div>}
+                  <div><div style={{fontSize:'0.875rem',fontWeight:600,color:'var(--text-primary)'}}>{s.name}</div><div style={{fontSize:'0.7rem',color:'var(--text-muted)'}}>{s.email}</div></div>
+                </div>
+              </td>
+              <td style={{padding:'10px 16px',fontSize:'0.825rem',color:'var(--text-secondary)'}}>Sem {s.semester}</td>
+              <td style={{padding:'10px 16px',fontSize:'0.825rem',color:'var(--text-secondary)'}}>{s.phone||'—'}</td>
+              <td style={{padding:'10px 16px',fontSize:'0.825rem',color:'var(--text-secondary)'}}>{s.enrollmentNo||'—'}</td>
+              <td style={{padding:'10px 16px'}}><button onClick={()=>onView(s)} style={{padding:'5px 12px',background:'rgba(59,130,246,0.08)',border:'1px solid rgba(59,130,246,0.2)',borderRadius:'var(--radius-sm)',color:'var(--accent)',fontSize:'0.75rem',fontFamily:'var(--font-body)',cursor:'pointer'}}>View</button></td>
+            </tr>
+          ))}</tbody>
+        </table>
       )}
     </div>
   );
