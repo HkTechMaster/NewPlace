@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { toast } from 'react-hot-toast';
+import React, { useState, useEffect } from 'react';import { toast } from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import { skillFacultyAPI, departmentAPI, courseAPI } from '../utils/api';
@@ -239,42 +238,9 @@ export default function DeanDashboard() {
             </div>
           )}
 
-          {/* ── COURSES TAB (read-only) ── */}
+          {/* ── COURSES TAB (read-only, filtered by dept) ── */}
           {activeTab === 'courses' && (
-            <div className={styles.tabContent}>
-              <div className={styles.readOnlyBanner}>
-                <svg viewBox="0 0 20 20" fill="currentColor" width="14"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/><path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd"/></svg>
-                View only — courses are managed by Chairpersons
-              </div>
-              {!courses.length ? (
-                <div className={styles.empty}><div className={styles.emptyIcon}>📚</div><h3>No Courses Yet</h3><p>Courses added by Chairpersons appear here.</p></div>
-              ) : (
-                <div className={styles.courseGrid}>
-                  {courses.map(course => (
-                    <div key={course._id} className={styles.courseCard}>
-                      <div className={styles.courseCardTop}>
-                        {course.code && <span className={styles.courseCode}>{course.code}</span>}
-                        <span className={styles.courseType}>{TYPE_LABELS[course.type] || course.type}</span>
-                      </div>
-                      <div className={styles.courseName}>{course.name}</div>
-                      {course.description && <div className={styles.courseDesc}>{course.description}</div>}
-                      <div className={styles.courseDetails}>
-                        <span>📅 {course.duration?.label}</span>
-                        <span>🔄 {course.totalBatches} batch{course.totalBatches !== 1 ? 'es' : ''}</span>
-                        <span>💺 {course.totalSeats || '—'} seats</span>
-                      </div>
-                      {course.currentBatch && <div className={styles.currentBatch}>Current: {course.currentBatch}</div>}
-                      <div className={styles.courseChair}>
-                        <svg viewBox="0 0 20 20" fill="currentColor" width="11"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"/></svg>
-                        <strong>{course.chairperson?.name}</strong>
-                        {course.chairperson?.departmentCode && <span> · {course.chairperson.departmentCode}</span>}
-                      </div>
-                      {course.coordinators?.length > 0 && <div className={styles.coordCount}>👥 {course.coordinators.length} coordinator{course.coordinators.length !== 1 ? 's' : ''}</div>}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            <DeanCoursesTab courses={courses} faculty={faculty} />
           )}
 
           {/* ── FACULTY INFO TAB ── */}
@@ -419,6 +385,103 @@ export default function DeanDashboard() {
               <button className={styles.dangerBtn} onClick={handleReject}>Reject</button>
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Dean Courses Tab — department pill buttons + filtered course cards ────────
+function DeanCoursesTab({ courses, faculty }) {
+  const [activeDept, setActiveDept] = React.useState('all');
+  const TYPE_LABELS = { fulltime:'Full Time', parttime:'Part Time', online:'Online', hybrid:'Hybrid' };
+
+  // Build department list from faculty + courses
+  const depts = React.useMemo(() => {
+    const fromFaculty = (faculty?.departments || []).map(d => ({ name: d.name, code: d.code || d.name }));
+    const fromCourses = courses
+      .filter(c => c.departmentName || c.departmentCode)
+      .map(c => ({ name: c.departmentName || c.departmentCode, code: c.departmentCode || c.departmentName }));
+    const all = [...fromFaculty, ...fromCourses];
+    const seen = new Set();
+    return all.filter(d => { if (seen.has(d.code)) return false; seen.add(d.code); return true; });
+  }, [faculty, courses]);
+
+  const filtered = activeDept === 'all'
+    ? courses
+    : courses.filter(c => c.departmentCode === activeDept || c.departmentName === activeDept);
+
+  return (
+    <div>
+      {/* Read-only banner */}
+      <div style={{display:'flex',alignItems:'center',gap:8,padding:'10px 14px',background:'rgba(59,130,246,0.06)',border:'1px solid rgba(59,130,246,0.15)',borderRadius:'var(--radius-sm)',marginBottom:16,fontSize:'0.78rem',color:'var(--text-muted)'}}>
+        <svg viewBox="0 0 20 20" fill="currentColor" width="13"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/><path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd"/></svg>
+        View only — courses are managed by Chairpersons
+      </div>
+
+      {/* Department pill buttons */}
+      {depts.length > 0 && (
+        <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:20}}>
+          <button
+            onClick={() => setActiveDept('all')}
+            style={{
+              padding:'6px 16px', borderRadius:20, border:'1px solid', cursor:'pointer',
+              fontSize:'0.8rem', fontWeight:700, fontFamily:'var(--font-body)', transition:'all 0.15s',
+              background: activeDept==='all' ? 'var(--accent)' : 'var(--bg-secondary)',
+              color: activeDept==='all' ? 'white' : 'var(--text-muted)',
+              borderColor: activeDept==='all' ? 'var(--accent)' : 'var(--border)',
+            }}
+          >
+            All Courses ({courses.length})
+          </button>
+          {depts.map(d => {
+            const count = courses.filter(c => c.departmentCode===d.code || c.departmentName===d.name).length;
+            const isActive = activeDept === d.code;
+            return (
+              <button key={d.code} onClick={() => setActiveDept(d.code)}
+                style={{
+                  padding:'6px 16px', borderRadius:20, border:'1px solid', cursor:'pointer',
+                  fontSize:'0.8rem', fontWeight:700, fontFamily:'var(--font-body)', transition:'all 0.15s',
+                  background: isActive ? 'var(--gold)' : 'var(--bg-secondary)',
+                  color: isActive ? '#000' : 'var(--text-muted)',
+                  borderColor: isActive ? 'var(--gold)' : 'var(--border)',
+                }}
+              >
+                {d.name} ({count})
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Course cards */}
+      {!filtered.length ? (
+        <div style={{textAlign:'center',padding:'48px 0',color:'var(--text-muted)',fontSize:'0.875rem'}}>
+          {activeDept === 'all' ? 'No courses yet.' : 'No courses in this department yet.'}
+        </div>
+      ) : (
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:14}}>
+          {filtered.map(course => (
+            <div key={course._id} style={{background:'var(--bg-card)',border:'1px solid var(--border)',borderRadius:'var(--radius)',padding:'16px 18px',display:'flex',flexDirection:'column',gap:10}}>
+              <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+                {course.code && <span style={{fontSize:'0.65rem',fontWeight:800,letterSpacing:'0.1em',color:'var(--success)',background:'rgba(16,185,129,0.1)',border:'1px solid rgba(16,185,129,0.2)',padding:'2px 8px',borderRadius:4}}>{course.code}</span>}
+                <span style={{fontSize:'0.65rem',fontWeight:700,textTransform:'uppercase',color:'#a78bfa',background:'rgba(139,92,246,0.1)',border:'1px solid rgba(139,92,246,0.2)',padding:'2px 8px',borderRadius:4}}>{TYPE_LABELS[course.type]||course.type}</span>
+              </div>
+              <div style={{fontFamily:'var(--font-display)',fontSize:'0.95rem',fontWeight:700,color:'var(--text-primary)'}}>{course.name}</div>
+              {course.departmentName && <div style={{fontSize:'0.72rem',color:'var(--text-muted)'}}>Dept: {course.departmentName}</div>}
+              <div style={{display:'flex',gap:14,flexWrap:'wrap',fontSize:'0.75rem',color:'var(--text-muted)'}}>
+                <span>⏱ {course.duration?.label}</span>
+                <span>🔄 {course.totalBatches} batches</span>
+                <span>💺 {course.totalSeats||'—'} seats</span>
+                {course.currentBatch && <span>📅 {course.currentBatch}</span>}
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:6,fontSize:'0.75rem',color:'var(--text-muted)',paddingTop:8,borderTop:'1px solid var(--border)'}}>
+                <svg viewBox="0 0 20 20" fill="currentColor" width="11"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"/></svg>
+                <strong style={{color:'var(--text-secondary)'}}>{course.chairperson?.name||'—'}</strong>
+                {course.coordinators?.length>0 && <span style={{marginLeft:'auto'}}>👥 {course.coordinators.length} coord.</span>}
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
