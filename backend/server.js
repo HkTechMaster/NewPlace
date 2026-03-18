@@ -4,7 +4,18 @@ const cors = require('cors');
 const connectDB = require('./config/db');
 
 const app = express();
-connectDB();
+connectDB().then(async () => {
+  // Auto-create super admins from .env
+  const User = require('./models/User');
+  const emails = (process.env.SUPER_ADMIN_EMAILS || process.env.SUPER_ADMIN_EMAIL || '').split(',').map(e=>e.trim().toLowerCase()).filter(Boolean);
+  for (const email of emails) {
+    const exists = await User.findOne({ email });
+    if (!exists) {
+      await User.create({ name: 'Super Admin', email, role: 'super_admin' });
+      console.log(`✅ Super Admin auto-created: ${email}`);
+    }
+  }
+});
 
 app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
 app.use(express.json({ limit: '20mb' }));
@@ -20,6 +31,9 @@ app.use('/api/courses', require('./routes/courses'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/students', require('./routes/students'));
 app.use('/api/cv', require('./routes/cv'));
+app.use('/api/student-lists', require('./routes/studentLists'));
+app.use('/api/jobs', require('./routes/jobs'));
+app.use('/api/drives', require('./routes/drives'));
 
 app.use((req, res) => res.status(404).json({ success: false, message: 'Route not found' }));
 
