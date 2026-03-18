@@ -15,8 +15,8 @@ export default function Navbar() {
     navigate('/login');
   };
 
-  const roleLabels = { super_admin:'Super Admin', dean:'Dean', chairperson:'Chairperson', coordinator:'Coordinator', student:'Student' };
-  const roleColors = { super_admin:'gold', dean:'blue', chairperson:'green', coordinator:'green', student:'green' };
+  const roleLabels = { super_admin:'Super Admin', dean:'Dean', chairperson:'Chairperson', coordinator:'Coordinator', placement_officer:'Placement Officer', student:'Student' };
+  const roleColors = { super_admin:'gold', dean:'blue', chairperson:'green', coordinator:'green', placement_officer:'gold', student:'green' };
   const roleBadge = roleLabels[user?.role] || user?.role;
   const roleColor = roleColors[user?.role] || 'blue';
 

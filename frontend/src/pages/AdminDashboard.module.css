@@ -551,3 +551,21 @@
 .reqStatusPill.approved { background:rgba(16,185,129,0.1); color:var(--success); border:1px solid rgba(16,185,129,0.2); }
 .reqStatusPill.rejected { background:rgba(239,68,68,0.08); color:var(--danger); border:1px solid rgba(239,68,68,0.2); }
 .reqRejectionReason { font-size:0.73rem; color:var(--danger); font-style:italic; max-width:280px; text-align:right; }
+
+/* Placement Officers tab */
+.poTabHeader { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:20px; gap:16px; flex-wrap:wrap; }
+.poTabTitle { font-family:var(--font-display); font-size:1.05rem; font-weight:700; color:var(--text-primary); margin-bottom:4px; }
+.poTabSub { font-size:0.78rem; color:var(--text-muted); max-width:480px; line-height:1.5; }
+.poGrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:14px; }
+.poCard { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:18px 20px; display:flex; flex-direction:column; gap:12px; transition:border-color 0.15s; }
+.poCard:hover { border-color:var(--gold); }
+.poCardTop { display:flex; align-items:center; gap:12px; }
+.poAvatar { width:46px; height:46px; border-radius:50%; background:linear-gradient(135deg,var(--gold),#d97706); color:#000; display:flex; align-items:center; justify-content:center; font-size:1.1rem; font-weight:800; font-family:var(--font-display); flex-shrink:0; overflow:hidden; }
+.poAvatarImg { width:100%; height:100%; object-fit:cover; }
+.poInfo { flex:1; min-width:0; }
+.poName { font-weight:700; color:var(--text-primary); font-size:0.95rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.poEmail { font-size:0.75rem; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.poFaculty { font-size:0.7rem; color:var(--gold); margin-top:2px; font-weight:600; }
+.poBadge { display:flex; }
+.poLoggedIn { font-size:0.7rem; font-weight:700; color:var(--success); background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.2); padding:3px 10px; border-radius:10px; }
+.poNotLoggedIn { font-size:0.7rem; font-weight:700; color:var(--text-muted); background:var(--bg-secondary); border:1px solid var(--border); padding:3px 10px; border-radius:10px; }

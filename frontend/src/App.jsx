@@ -9,6 +9,7 @@ import ChairpersonDashboard from './pages/ChairpersonDashboard';
 import CoordinatorDashboard from './pages/CoordinatorDashboard';
 import StudentDashboard from './pages/StudentDashboard';
 import StudentLogin from './pages/StudentLogin';
+import PlacementDashboard from './pages/PlacementDashboard';
 
 export default function App() {
   return (
@@ -46,6 +47,10 @@ export default function App() {
         {/* ── STUDENT DASHBOARD ── */}
         <Route path="/student/dashboard" element={
           <ProtectedRoute requiredRole="student"><StudentDashboard /></ProtectedRoute>
+        } />
+
+        <Route path="/placement/dashboard" element={
+          <ProtectedRoute requiredRole="placement_officer"><PlacementDashboard /></ProtectedRoute>
         } />
 
         {/* 404 → student login */}

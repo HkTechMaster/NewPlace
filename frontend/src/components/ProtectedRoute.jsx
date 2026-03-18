@@ -17,11 +17,12 @@ function LoadingScreen() {
 }
 
 const roleRedirect = (role) => ({
-  super_admin: '/admin/dashboard',
-  dean:        '/dean/dashboard',
-  chairperson: '/chairperson/dashboard',
-  coordinator: '/coordinator/dashboard',
-  student:     '/student/dashboard',
+  super_admin:       '/admin/dashboard',
+  dean:              '/dean/dashboard',
+  chairperson:       '/chairperson/dashboard',
+  coordinator:       '/coordinator/dashboard',
+  placement_officer: '/placement/dashboard',
+  student:           '/student/dashboard',
 }[role] || '/');
 
 // ── ProtectedRoute — requires login + correct role ───────────────

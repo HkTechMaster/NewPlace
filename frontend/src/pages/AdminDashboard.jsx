@@ -3,7 +3,7 @@ import { toast } from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import FacultyModal from '../components/FacultyModal';
-import { skillFacultyAPI, usersAPI, departmentAPI, courseAPI } from '../utils/api';
+import { skillFacultyAPI, usersAPI, departmentAPI, courseAPI, placementOfficerAPI } from '../utils/api';
 import styles from './AdminDashboard.module.css';
 
 const BLANK_DEPT_EDIT = { name:'', code:'', chairpersonName:'', chairpersonEmail:'' };
@@ -28,27 +28,62 @@ export default function AdminDashboard() {
   const [selectedFacultyId, setSelectedFacultyId] = useState(null);
   const [requestHistory, setRequestHistory] = useState([]);
 
+  // Placement Officers state
+  const [officers, setOfficers] = useState([]);
+  const [showPOForm, setShowPOForm] = useState(false);
+  const [poForm, setPoForm] = useState({ name:'', email:'', skillFacultyId:'' });
+  const [poLoading, setPoLoading] = useState(false);
+  const [deletePoConfirm, setDeletePoConfirm] = useState(null);
+
   useEffect(() => { fetchData(); }, []);
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [facRes, statsRes, courseRes, histRes] = await Promise.all([
+      const [facRes, statsRes, courseRes, histRes, poRes] = await Promise.all([
         skillFacultyAPI.getAll(),
         usersAPI.getStats(),
         courseAPI.getAll(),
         departmentAPI.getAdminHistory().catch(() => ({ data: { requests: [] } })),
+        placementOfficerAPI.getAll().catch(() => ({ data: { officers: [] } })),
       ]);
       setFaculties(facRes.data.faculties);
       setStats(statsRes.data.stats);
       setCourses(courseRes.data.courses || []);
       setRequestHistory(histRes.data.requests || []);
-      // Auto-select first faculty for departments tab
+      setOfficers(poRes.data.officers || []);
       if (facRes.data.faculties?.length && !selectedFacultyId) {
         setSelectedFacultyId(facRes.data.faculties[0]._id);
       }
     } catch { toast.error('Failed to load data'); }
     finally { setLoading(false); }
+  };
+
+  // ── PO Handlers ──────────────────────────────────────────────
+  const handleAddPO = async (e) => {
+    e.preventDefault();
+    setPoLoading(true);
+    try {
+      await placementOfficerAPI.create({
+        name: poForm.name,
+        email: poForm.email,
+        skillFacultyId: poForm.skillFacultyId || null,
+      });
+      toast.success(`${poForm.name} added as Placement Officer!`);
+      setShowPOForm(false);
+      setPoForm({ name:'', email:'', skillFacultyId:'' });
+      fetchData();
+    } catch (err) { toast.error(err.response?.data?.message || 'Failed'); }
+    finally { setPoLoading(false); }
+  };
+
+  const handleDeletePO = async (id, name) => {
+    try {
+      await placementOfficerAPI.delete(id);
+      toast.success(`${name} removed`);
+      setDeletePoConfirm(null);
+      fetchData();
+    } catch { toast.error('Delete failed'); }
   };
 
   const coursesForDept = (dept) => courses.filter(c =>
@@ -99,6 +134,7 @@ export default function AdminDashboard() {
     { label:'Skill Faculties', value:stats.totalFaculties, icon:'⬡', color:'blue', sub:`${stats.activeFaculties} active` },
     { label:'Total Deans',     value:stats.totalDeans,     icon:'◆', color:'gold', sub:`${stats.activeDeans} active` },
     { label:'Total Courses',   value:courses.length,       icon:'◉', color:'green', sub:'across all faculties' },
+    { label:'Placement Officers', value:officers.length,   icon:'🎯', color:'blue', sub:'managing placements' },
   ];
 
   return (
@@ -136,6 +172,7 @@ export default function AdminDashboard() {
         <div className={styles.tabs}>
           <button className={`${styles.tab} ${activeTab==='faculties'?styles.tabActive:''}`} onClick={() => setActiveTab('faculties')}>Skill Faculties ({faculties.length})</button>
           <button className={`${styles.tab} ${activeTab==='departments'?styles.tabActive:''}`} onClick={() => setActiveTab('departments')}>All Departments</button>
+          <button className={`${styles.tab} ${activeTab==='officers'?styles.tabActive:''}`} onClick={() => setActiveTab('officers')}>Placement Officers ({officers.length})</button>
         </div>
 
         {loading ? (
@@ -288,6 +325,54 @@ export default function AdminDashboard() {
               </>)}
             </div>
           )}
+          {/* ── PLACEMENT OFFICERS TAB ── */}
+          {activeTab === 'officers' && (
+            <div>
+              <div className={styles.poTabHeader}>
+                <div>
+                  <h3 className={styles.poTabTitle}>Placement Officers</h3>
+                  <p className={styles.poTabSub}>Placement Officers manage job postings, drives and student placement. They login via Google at /admin.</p>
+                </div>
+                <button className={styles.primaryBtn} onClick={() => setShowPOForm(true)}>+ Add Placement Officer</button>
+              </div>
+
+              {!officers.length ? (
+                <div className={styles.emptyState}>
+                  <div className={styles.emptyIcon}>🎯</div>
+                  <h3>No Placement Officers Yet</h3>
+                  <p>Add a Placement Officer by entering their name, email and faculty. They can login with Google at /admin.</p>
+                  <button className={styles.primaryBtn} onClick={() => setShowPOForm(true)}>Add First Officer</button>
+                </div>
+              ) : (
+                <div className={styles.poGrid}>
+                  {officers.map(po => (
+                    <div key={po._id} className={styles.poCard}>
+                      <div className={styles.poCardTop}>
+                        <div className={styles.poAvatar}>
+                          {po.avatar ? <img src={po.avatar} alt="" className={styles.poAvatarImg}/> : <span>{po.name?.charAt(0)}</span>}
+                        </div>
+                        <div className={styles.poInfo}>
+                          <div className={styles.poName}>{po.name}</div>
+                          <div className={styles.poEmail}>{po.email}</div>
+                          {po.skillFaculty && <div className={styles.poFaculty}>{po.skillFaculty.code} — {po.skillFaculty.name}</div>}
+                        </div>
+                        <button className={styles.deleteBtn} onClick={() => setDeletePoConfirm(po)} title="Remove">
+                          <svg viewBox="0 0 20 20" fill="currentColor" width="13"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd"/></svg>
+                        </button>
+                      </div>
+                      <div className={styles.poBadge}>
+                        {po.googleId
+                          ? <span className={styles.poLoggedIn}>✓ Logged in before</span>
+                          : <span className={styles.poNotLoggedIn}>⏳ Never logged in</span>
+                        }
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
         </>)}
       </main>
 
@@ -390,6 +475,61 @@ export default function AdminDashboard() {
                 <button type="submit" className={styles.editDeptSubmitBtn} disabled={editDeptLoading}>{editDeptLoading ? '...' : '📤 Send Edit Request to Dean'}</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Add Placement Officer Modal ── */}
+      {showPOForm && (
+        <div className={styles.confirmOverlay} onClick={e => e.target===e.currentTarget && setShowPOForm(false)}>
+          <div className={styles.confirmBox} style={{maxWidth:480}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16}}>
+              <h3 className={styles.confirmTitle} style={{margin:0}}>Add Placement Officer</h3>
+              <button className={styles.closeXBtn} onClick={() => setShowPOForm(false)}>✕</button>
+            </div>
+            <div className={styles.editRequestNotice}>
+              🎯 Placement Officers manage job postings and drives. They will login with Google at <strong>/admin</strong>.
+            </div>
+            <form onSubmit={handleAddPO}>
+              <div className={styles.editDeptGrid}>
+                <div className={styles.editField}>
+                  <label>Full Name *</label>
+                  <input className={styles.editInput} value={poForm.name} onChange={e=>setPoForm(f=>({...f,name:e.target.value}))} placeholder="Prof. Full Name" required/>
+                </div>
+                <div className={styles.editField}>
+                  <label>Google Email *</label>
+                  <input className={styles.editInput} type="email" value={poForm.email} onChange={e=>setPoForm(f=>({...f,email:e.target.value}))} placeholder="officer@institution.edu" required/>
+                </div>
+              </div>
+              <div className={styles.editField} style={{marginBottom:18}}>
+                <label>Skill Faculty (optional)</label>
+                <select className={styles.editInput} value={poForm.skillFacultyId} onChange={e=>setPoForm(f=>({...f,skillFacultyId:e.target.value}))}>
+                  <option value="">— All Faculties —</option>
+                  {faculties.map(f => <option key={f._id} value={f._id}>{f.code} — {f.name}</option>)}
+                </select>
+              </div>
+              <div className={styles.confirmActions}>
+                <button type="button" className={styles.cancelBtn} onClick={() => setShowPOForm(false)}>Cancel</button>
+                <button type="submit" className={styles.editDeptSubmitBtn} disabled={poLoading} style={{background:'var(--gold)'}}>
+                  {poLoading ? 'Adding...' : '🎯 Add Placement Officer'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete PO Confirm ── */}
+      {deletePoConfirm && (
+        <div className={styles.confirmOverlay} onClick={() => setDeletePoConfirm(null)}>
+          <div className={styles.confirmBox} onClick={e => e.stopPropagation()}>
+            <div className={styles.confirmIcon}>⚠</div>
+            <h3 className={styles.confirmTitle}>Remove Placement Officer?</h3>
+            <p className={styles.confirmMsg}>Remove <strong>{deletePoConfirm.name}</strong> ({deletePoConfirm.email})? They will lose access immediately.</p>
+            <div className={styles.confirmActions}>
+              <button className={styles.cancelBtn} onClick={() => setDeletePoConfirm(null)}>Cancel</button>
+              <button className={styles.dangerBtn} onClick={() => handleDeletePO(deletePoConfirm._id, deletePoConfirm.name)}>Remove</button>
+            </div>
           </div>
         </div>
       )}
