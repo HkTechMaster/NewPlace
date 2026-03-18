@@ -74,6 +74,7 @@ router.post('/google', async (req, res) => {
         dean: '/dean/dashboard',
         chairperson: '/chairperson/dashboard',
         coordinator: '/coordinator/dashboard',
+        placement_officer: '/placement/dashboard',
       };
 
       return res.json({
