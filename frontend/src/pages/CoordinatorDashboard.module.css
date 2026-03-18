@@ -150,3 +150,23 @@
 .updateTag { font-size:0.6rem; font-weight:800; letter-spacing:0.08em; color:var(--gold); background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.2); padding:1px 6px; border-radius:4px; margin-left:6px; }
 .remindBtn { padding:6px 12px; background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.2); border-radius:var(--radius-sm); color:var(--gold); font-size:0.75rem; font-family:var(--font-body); transition:all 0.15s; }
 .remindBtn:hover { background:rgba(245,158,11,0.15); }
+
+/* Student Lists tab */
+.listTabHeader { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; gap:16px; flex-wrap:wrap; }
+.listTabTitle { font-family:var(--font-display); font-size:1.05rem; font-weight:700; color:var(--text-primary); margin-bottom:3px; }
+.listTabSub { font-size:0.78rem; color:var(--text-muted); }
+.createListBtn { padding:10px 20px; background:var(--success); border:none; border-radius:var(--radius-sm); color:white; font-size:0.875rem; font-weight:700; font-family:var(--font-body); transition:all 0.15s; white-space:nowrap; }
+.createListBtn:hover { background:#059669; transform:translateY(-1px); }
+.listsGrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:14px; }
+.listCard { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:18px 20px; display:flex; flex-direction:column; gap:10px; transition:border-color 0.2s; }
+.listCardTop { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
+.listCardName { font-family:var(--font-display); font-size:0.95rem; font-weight:700; color:var(--text-primary); }
+.listStatusPill { font-size:0.65rem; font-weight:700; padding:3px 9px; border-radius:10px; white-space:nowrap; flex-shrink:0; }
+.listCardMeta { display:flex; gap:12px; flex-wrap:wrap; font-size:0.75rem; color:var(--text-muted); }
+.listCardDate { font-size:0.7rem; color:var(--text-muted); }
+.listRejectionNote { font-size:0.75rem; color:var(--danger); background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.15); border-radius:var(--radius-sm); padding:8px 12px; font-style:italic; line-height:1.5; }
+.listCardActions { display:flex; gap:8px; padding-top:8px; border-top:1px solid var(--border); }
+.resendBtn { padding:7px 14px; background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.2); border-radius:var(--radius-sm); color:var(--accent); font-size:0.78rem; font-weight:600; font-family:var(--font-body); transition:all 0.15s; }
+.resendBtn:hover { background:rgba(59,130,246,0.15); }
+.deleteListBtn { padding:7px 10px; background:rgba(239,68,68,0.07); border:1px solid rgba(239,68,68,0.18); border-radius:var(--radius-sm); color:var(--danger); font-size:0.78rem; transition:all 0.15s; margin-left:auto; }
+.deleteListBtn:hover { background:rgba(239,68,68,0.15); }

@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
-import { courseAPI } from '../utils/api';
+import { courseAPI, studentListAPI } from '../utils/api';
+import { CVPreview } from './CVBuilder';
+import axios from 'axios';
 import styles from './ChairpersonDashboard.module.css';
 
 const BLANK_COORD = { name: '', email: '', subject: '' };
@@ -26,8 +28,28 @@ export default function ChairpersonDashboard() {
   const [submitLoading, setSubmitLoading] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [expandedCourse, setExpandedCourse] = useState(null);
+  const [activeTab, setActiveTab] = useState('courses');
 
-  useEffect(() => { fetchCourses(); }, []);
+  // Inbox state
+  const [inboxGrouped, setInboxGrouped] = useState({});
+  const [selectedCourseId, setSelectedCourseId] = useState(null);
+  const [selectedList, setSelectedList] = useState(null);
+  const [selectedListDetail, setSelectedListDetail] = useState(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [showRejectBox, setShowRejectBox] = useState(false);
+  const [viewingCV, setViewingCV] = useState(null);
+  const [actionLoading, setActionLoading] = useState(false);
+
+  useEffect(() => { fetchCourses(); fetchInbox(); }, []);
+
+  const fetchInbox = async () => {
+    try {
+      const res = await studentListAPI.getInbox();
+      setInboxGrouped(res.data.grouped || {});
+    } catch { /* silent */ }
+  };
+
+  const fetchAll = () => { fetchCourses(); fetchInbox(); };
 
   const fetchCourses = async () => {
     try {
@@ -147,6 +169,194 @@ export default function ChairpersonDashboard() {
           <div className={styles.statCard}><div className={styles.statVal}>{courses.reduce((a, c) => a + (c.totalSeats || 0), 0)}</div><div className={styles.statLabel}>Total Seats</div></div>
         </div>
 
+        {/* Tabs */}
+        <div className={styles.tabs}>
+          <button className={`${styles.tab} ${activeTab==='courses'?styles.tabActive:''}`} onClick={() => setActiveTab('courses')}>
+            Courses ({courses.length})
+          </button>
+          <button className={`${styles.tab} ${activeTab==='inbox'?styles.tabActive:''}`} onClick={() => setActiveTab('inbox')}>
+            Student Lists Inbox
+            {Object.values(inboxGrouped).some(g => g.pendingCount > 0) && (
+              <span className={styles.inboxBadge}>{Object.values(inboxGrouped).reduce((a,g)=>a+g.pendingCount,0)}</span>
+            )}
+          </button>
+        </div>
+
+        {/* ── INBOX TAB ── */}
+        {activeTab === 'inbox' && (
+          <div className={styles.inboxLayout}>
+
+            {/* Column 1 — Courses */}
+            <div className={styles.inboxCol1}>
+              <div className={styles.inboxColTitle}>Courses</div>
+              {!Object.keys(inboxGrouped).length ? (
+                <div className={styles.inboxEmpty}>No lists received yet</div>
+              ) : Object.values(inboxGrouped).map(g => (
+                <button
+                  key={g.courseId}
+                  className={`${styles.courseInboxCard} ${selectedCourseId===g.courseId ? styles.courseInboxCardActive : ''}`}
+                  onClick={() => { setSelectedCourseId(g.courseId); setSelectedList(null); setSelectedListDetail(null); }}
+                >
+                  {g.courseCode && <span className={styles.inboxCourseCode}>{g.courseCode}</span>}
+                  <span className={styles.inboxCourseName}>{g.courseName}</span>
+                  <span className={styles.inboxCourseCount}>{g.lists.length} list{g.lists.length!==1?'s':''}</span>
+                  {g.pendingCount > 0 && <span className={styles.inboxNotifDot}>{g.pendingCount}</span>}
+                </button>
+              ))}
+            </div>
+
+            {/* Column 2 — Notifications (lists for selected course) */}
+            <div className={styles.inboxCol2}>
+              <div className={styles.inboxColTitle}>
+                {selectedCourseId ? inboxGrouped[selectedCourseId]?.courseName : 'Select a course'}
+              </div>
+              {!selectedCourseId ? (
+                <div className={styles.inboxEmpty}>← Click a course to see lists</div>
+              ) : !inboxGrouped[selectedCourseId]?.lists?.length ? (
+                <div className={styles.inboxEmpty}>No lists for this course</div>
+              ) : inboxGrouped[selectedCourseId].lists.map(list => (
+                <button
+                  key={list._id}
+                  className={`${styles.notifCard} ${selectedList?._id===list._id ? styles.notifCardActive : ''} ${list.status==='pending'?styles.notifPending:''}`}
+                  onClick={async () => {
+                    setSelectedList(list);
+                    setShowRejectBox(false);
+                    setRejectReason('');
+                    try {
+                      const res = await studentListAPI.getById(list._id);
+                      setSelectedListDetail(res.data.list);
+                    } catch { toast.error('Failed to load list'); }
+                  }}
+                >
+                  <div className={styles.notifCardTop}>
+                    <span className={styles.notifName}>{list.name}</span>
+                    {list.status === 'pending' && <span className={styles.notifNew}>NEW</span>}
+                    {list.status === 'approved' && <span className={styles.notifApproved}>✓</span>}
+                    {list.status === 'rejected' && <span className={styles.notifRejected}>✗</span>}
+                  </div>
+                  <div className={styles.notifMeta}>
+                    <span>👥 {list.students?.length} students</span>
+                    <span>Batch {list.batch}</span>
+                  </div>
+                  <div className={styles.notifDate}>{new Date(list.sentAt).toLocaleDateString('en-IN',{day:'2-digit',month:'short'})}</div>
+                </button>
+              ))}
+            </div>
+
+            {/* Column 3 — Inbox detail */}
+            <div className={styles.inboxCol3}>
+              {!selectedList ? (
+                <div className={styles.inboxEmpty} style={{marginTop:40}}>← Select a list to review</div>
+              ) : !selectedListDetail ? (
+                <div className={styles.inboxEmpty}>Loading...</div>
+              ) : (
+                <div className={styles.inboxDetail}>
+                  {/* Header */}
+                  <div className={styles.inboxDetailHeader}>
+                    <div>
+                      <h3 className={styles.inboxDetailTitle}>{selectedListDetail.name}</h3>
+                      <div className={styles.inboxDetailMeta}>
+                        From: {selectedListDetail.coordinator?.name} · Batch {selectedListDetail.batch} · {selectedListDetail.students?.length} students
+                      </div>
+                    </div>
+                    <button className={styles.inboxCloseBtn} onClick={() => { setSelectedList(null); setSelectedListDetail(null); }} title="Remove from inbox">✕</button>
+                  </div>
+
+                  {/* Status */}
+                  {selectedListDetail.status === 'approved' && (
+                    <div className={styles.inboxStatusBar} style={{background:'rgba(16,185,129,0.08)',border:'1px solid rgba(16,185,129,0.25)',color:'var(--success)'}}>✓ Approved</div>
+                  )}
+                  {selectedListDetail.status === 'rejected' && (
+                    <div className={styles.inboxStatusBar} style={{background:'rgba(239,68,68,0.07)',border:'1px solid rgba(239,68,68,0.2)',color:'var(--danger)'}}>✗ Rejected — "{selectedListDetail.rejectionReason}"</div>
+                  )}
+
+                  {/* Students table */}
+                  <div className={styles.inboxStudentsTitle}>Students ({selectedListDetail.students?.length})</div>
+                  <div className={styles.inboxStudentsList}>
+                    {selectedListDetail.students?.map((s, i) => (
+                      <div key={i} className={styles.inboxStudentRow}>
+                        <div className={styles.inboxStudentInfo}>
+                          {s.photo ? <img src={s.photo} alt="" className={styles.inboxStudentPhoto}/> : <div className={styles.inboxStudentFallback}>{s.name?.charAt(0)}</div>}
+                          <div>
+                            <div className={styles.inboxStudentName}>{s.name}</div>
+                            <div className={styles.inboxStudentEmail}>{s.email}</div>
+                          </div>
+                        </div>
+                        <span className={styles.inboxStudentSem}>Sem {s.semester}</span>
+                        {s.cvId && (
+                          <button className={styles.inboxViewCV} onClick={async () => {
+                            try {
+                              const res = await axios.get(`/cv/${s.cvId}`);
+                              setViewingCV(res.data.cv);
+                            } catch { toast.error('Failed to load CV'); }
+                          }}>View CV</button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Actions */}
+                  {selectedListDetail.status === 'pending' && (
+                    <div className={styles.inboxActions}>
+                      {!showRejectBox ? (<>
+                        <button className={styles.inboxApproveBtn} onClick={async () => {
+                          setActionLoading(true);
+                          try {
+                            await studentListAPI.approve(selectedListDetail._id);
+                            toast.success(`"${selectedListDetail.name}" approved!`);
+                            setSelectedList(null); setSelectedListDetail(null);
+                            fetchInbox();
+                          } catch { toast.error('Failed'); }
+                          finally { setActionLoading(false); }
+                        }} disabled={actionLoading}>✓ Approve List</button>
+                        <button className={styles.inboxRejectBtn} onClick={() => setShowRejectBox(true)}>✕ Reject</button>
+                      </>) : (
+                        <div className={styles.rejectBox}>
+                          <textarea
+                            className={styles.rejectInput}
+                            value={rejectReason}
+                            onChange={e => setRejectReason(e.target.value)}
+                            placeholder="Reason for rejection (required)..."
+                            rows={3}
+                          />
+                          <div style={{display:'flex',gap:10,marginTop:10}}>
+                            <button className={styles.cancelBtn} onClick={() => setShowRejectBox(false)}>Cancel</button>
+                            <button className={styles.dangerBtn} disabled={!rejectReason.trim() || actionLoading} onClick={async () => {
+                              setActionLoading(true);
+                              try {
+                                await studentListAPI.reject(selectedListDetail._id, rejectReason);
+                                toast.success('List rejected');
+                                setSelectedList(null); setSelectedListDetail(null); setShowRejectBox(false);
+                                fetchInbox();
+                              } catch { toast.error('Failed'); }
+                              finally { setActionLoading(false); }
+                            }}>Reject</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Remove from inbox */}
+                  {selectedListDetail.status !== 'pending' && (
+                    <button className={styles.removeInboxBtn} onClick={async () => {
+                      try {
+                        await studentListAPI.removeFromInbox(selectedListDetail._id);
+                        toast.success('Removed from inbox');
+                        setSelectedList(null); setSelectedListDetail(null);
+                        fetchInbox();
+                      } catch { toast.error('Failed'); }
+                    }}>✕ Remove from Inbox</button>
+                  )}
+                </div>
+              )}
+            </div>
+
+          </div>
+        )}
+
+        {/* ── COURSES TAB ── */}
+        {activeTab === 'courses' && (<>
         {/* Courses */}
         {loading ? (
           <div className={styles.loading}><span className="spinner" style={{width:28,height:28}} /><span>Loading courses...</span></div>
@@ -230,7 +440,25 @@ export default function ChairpersonDashboard() {
             ))}
           </div>
         )}
+        </>)}
       </main>
+
+      {/* ── CV View Modal (for chairperson viewing student CVs) ── */}
+      {viewingCV && (
+        <div className={styles.overlay} onClick={e => e.target===e.currentTarget && setViewingCV(null)}>
+          <div className={styles.modal} style={{maxWidth:760}}>
+            <div className={styles.modalHeader}>
+              <h2 className={styles.modalTitle}>Student CV</h2>
+              <button className={styles.closeBtn} onClick={() => setViewingCV(null)}>
+                <svg viewBox="0 0 20 20" fill="currentColor" width="17"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/></svg>
+              </button>
+            </div>
+            <div style={{overflow:'auto',padding:'20px 24px',maxHeight:'72vh'}}>
+              <CVPreview data={viewingCV}/>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Course Modal ── */}
       {showModal && (

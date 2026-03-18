@@ -128,3 +128,82 @@
   .courseGrid { grid-template-columns: 1fr; }
   .header { flex-direction: column; align-items: flex-start; }
 }
+
+/* ── Tabs ── */
+.tabs { display:flex; gap:4px; border-bottom:1px solid var(--border); margin-bottom:24px; }
+.tab { padding:10px 22px; background:none; border:none; border-bottom:2px solid transparent; color:var(--text-muted); font-size:0.875rem; font-weight:500; font-family:var(--font-body); transition:all 0.15s; margin-bottom:-1px; display:flex; align-items:center; gap:7px; cursor:pointer; }
+.tab:hover { color:var(--text-secondary); }
+.tabActive { color:var(--gold); border-bottom-color:var(--gold); }
+.inboxBadge { background:var(--warning); color:#000; font-size:0.65rem; font-weight:700; padding:1px 6px; border-radius:10px; }
+
+/* ── Inbox 3-column layout ── */
+.inboxLayout { display:grid; grid-template-columns:200px 240px 1fr; gap:0; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; min-height:520px; animation:fadeIn 0.3s ease both; }
+.inboxCol1 { border-right:1px solid var(--border); background:var(--bg-secondary); display:flex; flex-direction:column; }
+.inboxCol2 { border-right:1px solid var(--border); background:var(--bg-card); display:flex; flex-direction:column; overflow-y:auto; }
+.inboxCol3 { background:var(--bg-card); overflow-y:auto; }
+.inboxColTitle { padding:14px 16px; font-size:0.65rem; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-muted); border-bottom:1px solid var(--border); flex-shrink:0; }
+.inboxEmpty { padding:24px 16px; font-size:0.825rem; color:var(--text-muted); text-align:center; }
+
+/* Col 1 — course cards */
+.courseInboxCard { display:flex; flex-direction:column; align-items:flex-start; gap:3px; padding:12px 14px; border:none; background:none; border-bottom:1px solid var(--border); cursor:pointer; transition:background 0.15s; text-align:left; position:relative; width:100%; }
+.courseInboxCard:hover { background:rgba(255,255,255,0.03); }
+.courseInboxCardActive { background:rgba(59,130,246,0.08) !important; border-left:2px solid var(--accent); }
+.inboxCourseCode { font-size:0.6rem; font-weight:800; letter-spacing:0.1em; color:var(--accent); background:rgba(59,130,246,0.1); border:1px solid rgba(59,130,246,0.2); padding:1px 6px; border-radius:4px; }
+.inboxCourseName { font-size:0.825rem; font-weight:600; color:var(--text-primary); font-family:var(--font-body); }
+.inboxCourseCount { font-size:0.7rem; color:var(--text-muted); }
+.inboxNotifDot { position:absolute; top:10px; right:10px; background:var(--warning); color:#000; font-size:0.6rem; font-weight:700; width:18px; height:18px; border-radius:50%; display:flex; align-items:center; justify-content:center; }
+
+/* Col 2 — notification cards */
+.notifCard { display:flex; flex-direction:column; gap:4px; padding:12px 14px; border:none; background:none; border-bottom:1px solid var(--border); cursor:pointer; transition:background 0.15s; text-align:left; width:100%; }
+.notifCard:hover { background:rgba(255,255,255,0.03); }
+.notifCardActive { background:rgba(59,130,246,0.06) !important; }
+.notifPending { border-left:2px solid var(--warning); }
+.notifCardTop { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.notifName { font-size:0.825rem; font-weight:600; color:var(--text-primary); font-family:var(--font-body); }
+.notifNew { font-size:0.55rem; font-weight:800; text-transform:uppercase; letter-spacing:0.08em; background:var(--warning); color:#000; padding:2px 6px; border-radius:4px; flex-shrink:0; }
+.notifApproved { font-size:0.75rem; color:var(--success); font-weight:700; }
+.notifRejected { font-size:0.75rem; color:var(--danger); font-weight:700; }
+.notifMeta { display:flex; gap:10px; font-size:0.72rem; color:var(--text-muted); }
+.notifDate { font-size:0.68rem; color:var(--text-muted); }
+
+/* Col 3 — detail */
+.inboxDetail { display:flex; flex-direction:column; gap:0; height:100%; }
+.inboxDetailHeader { display:flex; align-items:flex-start; justify-content:space-between; padding:16px 18px; border-bottom:1px solid var(--border); gap:12px; background:var(--bg-secondary); }
+.inboxDetailTitle { font-family:var(--font-display); font-size:1rem; font-weight:700; color:var(--text-primary); margin-bottom:4px; }
+.inboxDetailMeta { font-size:0.75rem; color:var(--text-muted); }
+.inboxCloseBtn { background:none; border:none; color:var(--text-muted); font-size:1.1rem; cursor:pointer; padding:4px 8px; border-radius:6px; transition:all 0.15s; flex-shrink:0; }
+.inboxCloseBtn:hover { background:rgba(239,68,68,0.1); color:var(--danger); }
+.inboxStatusBar { padding:9px 18px; font-size:0.8rem; font-weight:600; }
+.inboxStudentsTitle { padding:10px 18px; font-size:0.65rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-muted); border-bottom:1px solid var(--border); }
+.inboxStudentsList { flex:1; overflow-y:auto; }
+.inboxStudentRow { display:flex; align-items:center; gap:12px; padding:10px 18px; border-bottom:1px solid var(--border); transition:background 0.1s; }
+.inboxStudentRow:hover { background:rgba(255,255,255,0.02); }
+.inboxStudentInfo { display:flex; align-items:center; gap:10px; flex:1; }
+.inboxStudentPhoto { width:32px; height:32px; border-radius:50%; object-fit:cover; flex-shrink:0; }
+.inboxStudentFallback { width:32px; height:32px; border-radius:50%; background:linear-gradient(135deg,var(--gold),#d97706); color:#000; display:flex; align-items:center; justify-content:center; font-size:0.8rem; font-weight:700; flex-shrink:0; }
+.inboxStudentName { font-size:0.875rem; font-weight:600; color:var(--text-primary); }
+.inboxStudentEmail { font-size:0.7rem; color:var(--text-muted); }
+.inboxStudentSem { font-size:0.75rem; color:var(--text-muted); flex-shrink:0; }
+.inboxViewCV { padding:5px 12px; background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.2); border-radius:var(--radius-sm); color:var(--accent); font-size:0.75rem; font-family:var(--font-body); cursor:pointer; transition:all 0.15s; flex-shrink:0; }
+.inboxViewCV:hover { background:rgba(59,130,246,0.15); }
+.inboxActions { padding:16px 18px; border-top:1px solid var(--border); display:flex; gap:10px; flex-wrap:wrap; }
+.inboxApproveBtn { padding:10px 24px; background:var(--success); border:none; border-radius:var(--radius-sm); color:white; font-size:0.875rem; font-weight:700; font-family:var(--font-body); cursor:pointer; transition:all 0.15s; }
+.inboxApproveBtn:hover:not(:disabled) { background:#059669; }
+.inboxApproveBtn:disabled { opacity:0.6; cursor:not-allowed; }
+.inboxRejectBtn { padding:10px 20px; background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.2); border-radius:var(--radius-sm); color:var(--danger); font-size:0.875rem; font-weight:600; font-family:var(--font-body); cursor:pointer; transition:all 0.15s; }
+.inboxRejectBtn:hover { background:rgba(239,68,68,0.15); }
+.rejectBox { padding:0 18px 16px; width:100%; }
+.rejectInput { width:100%; background:var(--bg-secondary); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 13px; color:var(--text-primary); font-size:0.875rem; font-family:var(--font-body); resize:vertical; box-sizing:border-box; }
+.rejectInput:focus { border-color:var(--danger); outline:none; }
+.cancelBtn { padding:8px 16px; background:none; border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text-secondary); font-size:0.825rem; font-family:var(--font-body); cursor:pointer; transition:all 0.15s; }
+.cancelBtn:hover { border-color:var(--border-light); }
+.dangerBtn { padding:8px 18px; background:var(--danger); border:none; border-radius:var(--radius-sm); color:white; font-size:0.825rem; font-weight:600; font-family:var(--font-body); cursor:pointer; transition:all 0.15s; }
+.dangerBtn:hover:not(:disabled) { background:#dc2626; }
+.dangerBtn:disabled { opacity:0.5; cursor:not-allowed; }
+.removeInboxBtn { margin:16px 18px; padding:8px 16px; background:none; border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text-muted); font-size:0.8rem; font-family:var(--font-body); cursor:pointer; transition:all 0.15s; align-self:flex-start; }
+.removeInboxBtn:hover { border-color:var(--danger); color:var(--danger); }
+
+@media(max-width:900px) {
+  .inboxLayout { grid-template-columns:1fr; }
+  .inboxCol1,.inboxCol2 { border-right:none; border-bottom:1px solid var(--border); }
+}

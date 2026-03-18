@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';import { toast } from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
-import { studentAPI, courseAPI, cvAPI } from '../utils/api';
+import { studentAPI, courseAPI, cvAPI, studentListAPI } from '../utils/api';
 import { CVPreview } from './CVBuilder';
 import styles from './CoordinatorDashboard.module.css';
 
@@ -20,27 +20,37 @@ export default function CoordinatorDashboard() {
   // CV state
   const [cvRequests, setCvRequests] = useState({ pendingCVs: [], pendingUpdates: [] });
   const [studentsList, setStudentsList] = useState({});
-  const [viewCV, setViewCV] = useState(null); // { cv, isUpdate }
-  const [cvRejectModal, setCvRejectModal] = useState(null); // { id, isUpdate, name }
+  const [viewCV, setViewCV] = useState(null);
+  const [cvRejectModal, setCvRejectModal] = useState(null);
   const [cvRejectReason, setCvRejectReason] = useState('');
+
+  // Student List state
+  const [myLists, setMyLists] = useState([]);
+  const [showCreateList, setShowCreateList] = useState(false);
+  const [listForm, setListForm] = useState({ name: '', courseId: '', batch: '' });
+  const [listLoading, setListLoading] = useState(false);
+  const [resendModal, setResendModal] = useState(null);
+  const [resendName, setResendName] = useState('');
 
   useEffect(() => { fetchAll(); }, []);
 
   const fetchAll = async () => {
     try {
       setLoading(true);
-      const [pendRes, groupRes, courseRes, cvReqRes, cvListRes] = await Promise.all([
+      const [pendRes, groupRes, courseRes, cvReqRes, cvListRes, listsRes] = await Promise.all([
         studentAPI.getPending(),
         studentAPI.getByCourse(),
         courseAPI.getAll(),
         cvAPI.getRequests().catch(() => ({ data: { pendingCVs: [], pendingUpdates: [] } })),
         cvAPI.getStudentsList().catch(() => ({ data: { grouped: {} } })),
+        studentListAPI.getMine().catch(() => ({ data: { lists: [] } })),
       ]);
       setPendingStudents(pendRes.data.students || []);
       setGrouped(groupRes.data.grouped || {});
       setCourses(courseRes.data.courses || []);
       setCvRequests(cvReqRes.data);
       setStudentsList(cvListRes.data.grouped || {});
+      setMyLists(listsRes.data.lists || []);
     } catch { toast.error('Failed to load data'); }
     finally { setLoading(false); }
   };
@@ -48,6 +58,44 @@ export default function CoordinatorDashboard() {
   const handleRemind = async (cvId, name) => {
     try { await cvAPI.remind(cvId); toast.success(`Reminder sent to ${name}!`); fetchAll(); }
     catch { toast.error('Failed'); }
+  };
+
+  // ── Student List handlers ─────────────────────────────────────
+  const handleCreateList = async (e) => {
+    e.preventDefault();
+    if (!listForm.name || !listForm.courseId || !listForm.batch) { toast.error('Fill all fields'); return; }
+    setListLoading(true);
+    try {
+      const res = await studentListAPI.create(listForm);
+      toast.success(res.data.message);
+      setShowCreateList(false);
+      setListForm({ name: '', courseId: '', batch: '' });
+      fetchAll();
+    } catch (err) { toast.error(err.response?.data?.message || 'Failed to create list'); }
+    finally { setListLoading(false); }
+  };
+
+  const handleResend = async () => {
+    setListLoading(true);
+    try {
+      const res = await studentListAPI.resend(resendModal._id, { name: resendName || resendModal.name });
+      toast.success(res.data.message);
+      setResendModal(null);
+      fetchAll();
+    } catch (err) { toast.error(err.response?.data?.message || 'Failed'); }
+    finally { setListLoading(false); }
+  };
+
+  const handleDeleteList = async (id, name) => {
+    if (!window.confirm(`Delete list "${name}"?`)) return;
+    try { await studentListAPI.delete(id); toast.success('List deleted'); fetchAll(); }
+    catch (err) { toast.error(err.response?.data?.message || 'Failed'); }
+  };
+
+  // Batches available per course (from grouped students)
+  const batchesForCourse = (courseId) => {
+    const cg = Object.values(grouped).find(g => g.courseId === courseId);
+    return cg ? Object.keys(cg.batches) : [];
   };
 
   const totalApproved = Object.values(grouped).reduce((a, c) => a + Object.values(c.batches).reduce((b, s) => b + s.length, 0), 0);
@@ -131,6 +179,9 @@ export default function CoordinatorDashboard() {
           </button>
           <button className={`${styles.tab} ${activeTab==='courses'?styles.tabActive:''}`} onClick={() => setActiveTab('courses')}>
             My Courses ({courses.length})
+          </button>
+          <button className={`${styles.tab} ${activeTab==='lists'?styles.tabActive:''}`} onClick={() => setActiveTab('lists')}>
+            Student Lists {myLists.filter(l=>l.status==='rejected').length > 0 && <span className={styles.badge}>{myLists.filter(l=>l.status==='rejected').length}</span>}
           </button>
         </div>
 
@@ -248,6 +299,58 @@ export default function CoordinatorDashboard() {
                   <LoginStudentsBatchTabs batches={courseGroup.batches} onView={setViewStudent}/>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* ── MY LISTS TAB ── */}
+          {activeTab === 'lists' && (
+            <div className={styles.tabContent}>
+              <div className={styles.listTabHeader}>
+                <div>
+                  <h3 className={styles.listTabTitle}>Student Lists</h3>
+                  <p className={styles.listTabSub}>Create verified student lists and send to Chairperson</p>
+                </div>
+                <button className={styles.createListBtn} onClick={() => setShowCreateList(true)}>+ Create List</button>
+              </div>
+
+              {!myLists.length ? (
+                <div className={styles.empty}><div className={styles.emptyIcon}>📋</div><h3>No Lists Yet</h3><p>Create your first student list to send to Chairperson.</p></div>
+              ) : (
+                <div className={styles.listsGrid}>
+                  {myLists.map(list => {
+                    const statusConfig = {
+                      pending:  { label: '⏳ Pending Review', color: 'var(--warning)',  bg: 'rgba(245,158,11,0.08)',  border: 'rgba(245,158,11,0.25)' },
+                      approved: { label: '✓ Approved',        color: 'var(--success)',  bg: 'rgba(16,185,129,0.08)',  border: 'rgba(16,185,129,0.25)' },
+                      rejected: { label: '✗ Rejected',        color: 'var(--danger)',   bg: 'rgba(239,68,68,0.07)',   border: 'rgba(239,68,68,0.2)'   },
+                    }[list.status];
+                    return (
+                      <div key={list._id} className={styles.listCard} style={{borderColor: list.status==='rejected' ? 'rgba(239,68,68,0.3)' : list.status==='approved' ? 'rgba(16,185,129,0.3)' : 'var(--border)'}}>
+                        <div className={styles.listCardTop}>
+                          <div className={styles.listCardName}>{list.name}</div>
+                          <span className={styles.listStatusPill} style={{color:statusConfig.color,background:statusConfig.bg,border:`1px solid ${statusConfig.border}`}}>{statusConfig.label}</span>
+                        </div>
+                        <div className={styles.listCardMeta}>
+                          <span>📚 {list.courseName}</span>
+                          <span>📅 Batch {list.batch}</span>
+                          <span>👥 {list.students?.length || 0} students</span>
+                        </div>
+                        <div className={styles.listCardDate}>Sent: {new Date(list.sentAt).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
+                        {list.status === 'rejected' && list.rejectionReason && (
+                          <div className={styles.listRejectionNote}>Chairperson said: "{list.rejectionReason}"</div>
+                        )}
+                        <div className={styles.listCardActions}>
+                          {list.status === 'rejected' && (
+                            <button className={styles.resendBtn} onClick={() => { setResendModal(list); setResendName(list.name); }}>🔄 Re-send</button>
+                          )}
+                          {list.status !== 'approved' && (
+                            <button className={styles.deleteListBtn} onClick={() => handleDeleteList(list._id, list.name)}>🗑</button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
@@ -374,6 +477,76 @@ export default function CoordinatorDashboard() {
             <div className={styles.rejectActions}>
               <button className={styles.cancelBtn} onClick={() => setCvRejectModal(null)}>Cancel</button>
               <button className={styles.dangerBtn} onClick={handleCvReject}>Reject</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Create List Modal ── */}
+      {showCreateList && (
+        <div className={styles.overlay} onClick={e => e.target===e.currentTarget && setShowCreateList(false)}>
+          <div className={styles.rejectBox} style={{maxWidth:480}}>
+            <h3 className={styles.rejectTitle}>Create Student List</h3>
+            <p className={styles.rejectSub}>Only verified students in the selected course+batch will be included.</p>
+            <form onSubmit={handleCreateList} style={{display:'flex',flexDirection:'column',gap:12}}>
+              <div>
+                <label style={{fontSize:'0.73rem',fontWeight:600,color:'var(--text-secondary)',display:'block',marginBottom:4}}>List Name *</label>
+                <input
+                  style={{width:'100%',padding:'9px 12px',background:'var(--bg-secondary)',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',color:'var(--text-primary)',fontSize:'0.875rem',fontFamily:'var(--font-body)',boxSizing:'border-box'}}
+                  value={listForm.name} onChange={e => setListForm(f=>({...f,name:e.target.value}))}
+                  placeholder="e.g. CSE Batch 2023-27 Placement List" required
+                />
+              </div>
+              <div>
+                <label style={{fontSize:'0.73rem',fontWeight:600,color:'var(--text-secondary)',display:'block',marginBottom:4}}>Course *</label>
+                <select
+                  style={{width:'100%',padding:'9px 12px',background:'var(--bg-secondary)',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',color:'var(--text-primary)',fontSize:'0.875rem',fontFamily:'var(--font-body)'}}
+                  value={listForm.courseId} onChange={e => setListForm(f=>({...f,courseId:e.target.value,batch:''}))} required
+                >
+                  <option value="">— Select Course —</option>
+                  {courses.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{fontSize:'0.73rem',fontWeight:600,color:'var(--text-secondary)',display:'block',marginBottom:4}}>Batch *</label>
+                {!listForm.courseId
+                  ? <div style={{padding:'9px 12px',background:'var(--bg-secondary)',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',color:'var(--text-muted)',fontSize:'0.825rem'}}>Select course first</div>
+                  : <select
+                      style={{width:'100%',padding:'9px 12px',background:'var(--bg-secondary)',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',color:'var(--text-primary)',fontSize:'0.875rem',fontFamily:'var(--font-body)'}}
+                      value={listForm.batch} onChange={e => setListForm(f=>({...f,batch:e.target.value}))} required
+                    >
+                      <option value="">— Select Batch —</option>
+                      {batchesForCourse(listForm.courseId).map(b => <option key={b} value={b}>{b}</option>)}
+                    </select>
+                }
+              </div>
+              <div className={styles.rejectActions} style={{marginTop:8}}>
+                <button type="button" className={styles.cancelBtn} onClick={() => setShowCreateList(false)}>Cancel</button>
+                <button type="submit" className={styles.approveBtn} disabled={listLoading}>{listLoading ? 'Creating...' : '→ Create & Send'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Resend Modal ── */}
+      {resendModal && (
+        <div className={styles.overlay} onClick={e => e.target===e.currentTarget && setResendModal(null)}>
+          <div className={styles.rejectBox} style={{maxWidth:440}}>
+            <h3 className={styles.rejectTitle}>Re-send List</h3>
+            <p className={styles.rejectSub}>Course: <strong>{resendModal.courseName}</strong> · Batch: <strong>{resendModal.batch}</strong></p>
+            {resendModal.rejectionReason && <div className={styles.listRejectionNote} style={{marginBottom:14}}>Rejected reason: "{resendModal.rejectionReason}"</div>}
+            <div style={{marginBottom:16}}>
+              <label style={{fontSize:'0.73rem',fontWeight:600,color:'var(--text-secondary)',display:'block',marginBottom:4}}>List Name</label>
+              <input
+                style={{width:'100%',padding:'9px 12px',background:'var(--bg-secondary)',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',color:'var(--text-primary)',fontSize:'0.875rem',fontFamily:'var(--font-body)',boxSizing:'border-box'}}
+                value={resendName} onChange={e => setResendName(e.target.value)}
+              />
+            </div>
+            <p style={{fontSize:'0.78rem',color:'var(--text-muted)',marginBottom:16}}>ℹ️ Student list will be refreshed — all currently verified students in this batch will be included.</p>
+            <div className={styles.rejectActions}>
+              <button className={styles.cancelBtn} onClick={() => setResendModal(null)}>Cancel</button>
+              <button className={styles.approveBtn} disabled={listLoading} onClick={handleResend}>{listLoading ? 'Sending...' : '🔄 Re-send to Chairperson'}</button>
             </div>
           </div>
         </div>
