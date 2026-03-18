@@ -45,4 +45,32 @@ router.get('/coordinators', protect, superAdminOnly, async (req, res) => {
   } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
+// ── Placement Officers ───────────────────────────────────────────
+const PlacementOfficer = require('../models/PlacementOfficer');
+
+router.get('/placement-officers', protect, superAdminOnly, async (req, res) => {
+  try {
+    const officers = await PlacementOfficer.find().populate('skillFaculty', 'code name');
+    res.json({ success: true, officers });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+router.post('/placement-officers', protect, superAdminOnly, async (req, res) => {
+  try {
+    const { name, email, skillFacultyId } = req.body;
+    if (!name || !email) return res.status(400).json({ success: false, message: 'Name and email required' });
+    const exists = await PlacementOfficer.findOne({ email: email.toLowerCase() });
+    if (exists) return res.status(400).json({ success: false, message: 'Email already registered' });
+    const officer = await PlacementOfficer.create({ name, email: email.toLowerCase(), skillFaculty: skillFacultyId || null });
+    res.status(201).json({ success: true, message: `${name} added as Placement Officer. They can now login with Google.`, officer });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+router.delete('/placement-officers/:id', protect, superAdminOnly, async (req, res) => {
+  try {
+    await PlacementOfficer.findByIdAndDelete(req.params.id);
+    res.json({ success: true, message: 'Placement Officer removed' });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+
 module.exports = router;

@@ -53,7 +53,53 @@ export const cvAPI = {
   remind: (id) => axios.post(`/cv/${id}/remind`),
 };
 
+export const studentListAPI = {
+  // Coordinator
+  getMine: () => axios.get('/student-lists/mine'),
+  create: (data) => axios.post('/student-lists/create', data),
+  resend: (id, data) => axios.put(`/student-lists/${id}/resend`, data),
+  delete: (id) => axios.delete(`/student-lists/${id}`),
+  // Chairperson
+  getInbox: () => axios.get('/student-lists/inbox'),
+  getById: (id) => axios.get(`/student-lists/${id}`),
+  approve: (id) => axios.put(`/student-lists/${id}/approve`),
+  reject: (id, reason) => axios.put(`/student-lists/${id}/reject`, { reason }),
+  removeFromInbox: (id) => axios.put(`/student-lists/${id}/remove-inbox`),
+  // Placement Officer
+  getApproved: () => axios.get('/student-lists/approved'),
+};
+
 export const usersAPI = {
   getDeans: () => axios.get('/users/deans'),
   getStats: () => axios.get('/users/stats'),
+};
+
+export const jobAPI = {
+  getAll: () => axios.get('/jobs'),
+  getEligible: () => axios.get('/jobs/eligible'),
+  create: (data) => axios.post('/jobs', data),
+  update: (id, data) => axios.put(`/jobs/${id}`, data),
+  delete: (id) => axios.delete(`/jobs/${id}`),
+  getEligibleStudents: (id) => axios.get(`/jobs/${id}/eligible-students`),
+  apply: (id) => axios.post(`/jobs/${id}/apply`),
+  addStudent: (id, studentId) => axios.post(`/jobs/${id}/add-student`, { studentId }),
+  remind: (id) => axios.post(`/jobs/${id}/remind`),
+};
+
+export const driveAPI = {
+  getAll: () => axios.get('/drives'),
+  getMine: () => axios.get('/drives/mine'),
+  getById: (id) => axios.get(`/drives/${id}`),
+  create: (data) => axios.post('/drives', data),
+  addRound: (id, data) => axios.post(`/drives/${id}/rounds`, data),
+  saveAttendance: (id, roundId, data) => axios.put(`/drives/${id}/rounds/${roundId}/attendance`, data),
+  saveResults: (id, roundId, data) => axios.put(`/drives/${id}/rounds/${roundId}/results`, data),
+  uploadOffer: (id, studentId, data) => axios.put(`/drives/${id}/offer-letter/${studentId}`, data),
+  getReport: (id) => axios.get(`/drives/${id}/report`),
+};
+
+export const placementOfficerAPI = {
+  getAll: () => axios.get('/users/placement-officers'),
+  create: (data) => axios.post('/users/placement-officers', data),
+  delete: (id) => axios.delete(`/users/placement-officers/${id}`),
 };
