@@ -22,10 +22,17 @@ router.get('/public', async (req, res) => {
 router.get('/', protect, async (req, res) => {
   try {
     let filter = {};
-    if (req.user.role === 'chairperson') filter = { chairperson: req.user._id };
-    else if (req.user.role === 'dean') {
+    if (req.user.role === 'chairperson') {
+      filter = { chairperson: req.user._id };
+    } else if (req.user.role === 'dean') {
       const facultyId = req.user.skillFaculty?._id || req.user.skillFaculty;
       filter = { skillFaculty: facultyId };
+    } else if (req.user.role === 'coordinator') {
+      // Only courses where this coordinator is assigned
+      filter = { 'coordinators.coordinator': req.user._id };
+    } else if (req.user.role === 'placement_officer') {
+      const facultyId = req.user.skillFaculty?._id || req.user.skillFaculty;
+      if (facultyId) filter = { skillFaculty: facultyId };
     }
     const courses = await Course.find(filter)
       .populate('chairperson', 'name email departmentCode departmentName')

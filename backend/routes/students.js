@@ -71,13 +71,21 @@ router.post('/register', async (req, res) => {
 });
 
 // @route  GET /api/students/pending
-// @desc   Coordinator gets pending students for their course/faculty
-// @access Coordinator only
 router.get('/pending', protect, async (req, res) => {
   try {
     if (req.user.role !== 'coordinator') return res.status(403).json({ success: false, message: 'Coordinator only' });
     const facultyId = req.user.skillFaculty?._id || req.user.skillFaculty;
-    const students = await Student.find({ skillFaculty: facultyId, status: 'pending' })
+
+    // Get courses assigned to this coordinator
+    const Course = require('../models/Course');
+    const myCourses = await Course.find({ 'coordinators.coordinator': req.user._id }).select('_id');
+    const myCourseIds = myCourses.map(c => c._id);
+
+    const students = await Student.find({
+      skillFaculty: facultyId,
+      status: 'pending',
+      ...(myCourseIds.length ? { course: { $in: myCourseIds } } : {}),
+    })
       .populate('course', 'name code')
       .populate('skillFaculty', 'name code')
       .sort({ createdAt: -1 });
@@ -158,7 +166,17 @@ router.get('/by-course', protect, async (req, res) => {
   try {
     if (req.user.role !== 'coordinator') return res.status(403).json({ success: false, message: 'Coordinator only' });
     const facultyId = req.user.skillFaculty?._id || req.user.skillFaculty;
-    const students = await Student.find({ skillFaculty: facultyId, status: 'active' })
+
+    // Get only courses assigned to this coordinator
+    const Course = require('../models/Course');
+    const myCourses = await Course.find({ 'coordinators.coordinator': req.user._id }).select('_id name code');
+    const myCourseIds = myCourses.map(c => c._id);
+
+    const students = await Student.find({
+      skillFaculty: facultyId,
+      status: 'active',
+      ...(myCourseIds.length ? { course: { $in: myCourseIds } } : {}),
+    })
       .populate('course', 'name code duration totalBatches')
       .sort({ course: 1, batch: 1, name: 1 });
 

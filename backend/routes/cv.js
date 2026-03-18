@@ -104,8 +104,20 @@ router.get('/requests', protect, async (req, res) => {
     if (req.user.role !== 'coordinator') return res.status(403).json({ success: false, message: 'Coordinator only' });
     const facultyId = req.user.skillFaculty?._id || req.user.skillFaculty;
 
+    // Only students in coordinator's assigned courses
+    const Course = require('../models/Course');
+    const myCourses = await Course.find({ 'coordinators.coordinator': req.user._id }).select('_id');
+    const myCourseIds = myCourses.map(c => c._id);
+
     const pendingCVs = await CV.find({ status: 'pending' })
-      .populate({ path: 'student', match: { skillFaculty: facultyId }, select: 'name email photo courseName batch semester enrollmentNo skillFaculty' })
+      .populate({
+        path: 'student',
+        match: {
+          skillFaculty: facultyId,
+          ...(myCourseIds.length ? { course: { $in: myCourseIds } } : {}),
+        },
+        select: 'name email photo courseName batch semester enrollmentNo skillFaculty'
+      })
       .sort({ submittedAt: 1 });
 
     const filtered = pendingCVs.filter(c => c.student);
@@ -119,8 +131,16 @@ router.get('/students-list', protect, async (req, res) => {
     if (req.user.role !== 'coordinator') return res.status(403).json({ success: false, message: 'Coordinator only' });
     const facultyId = req.user.skillFaculty?._id || req.user.skillFaculty;
 
-    const students = await Student.find({ skillFaculty: facultyId, status: 'active' })
-      .sort({ courseName: 1, batch: 1, name: 1 });
+    // Only courses assigned to this coordinator
+    const Course = require('../models/Course');
+    const myCourses = await Course.find({ 'coordinators.coordinator': req.user._id }).select('_id');
+    const myCourseIds = myCourses.map(c => c._id);
+
+    const students = await Student.find({
+      skillFaculty: facultyId,
+      status: 'active',
+      ...(myCourseIds.length ? { course: { $in: myCourseIds } } : {}),
+    }).sort({ courseName: 1, batch: 1, name: 1 });
 
     const studentIds = students.map(s => s._id);
     // Get verified CV per student (only 1 per student)
@@ -168,6 +188,19 @@ router.get('/students-list', protect, async (req, res) => {
       });
     }
     res.json({ success: true, grouped });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// GET verified CV by student ID — for PO and coordinators
+router.get('/student-verified/:studentId', protect, async (req, res) => {
+  try {
+    if (!['placement_officer','coordinator','chairperson'].includes(req.user.role)) {
+      return res.status(403).json({ success: false, message: 'Access denied' });
+    }
+    const cv = await CV.findOne({ student: req.params.studentId, status: 'verified' })
+      .populate('student', 'name email photo courseName batch semester');
+    if (!cv) return res.status(404).json({ success: false, message: 'No verified CV found for this student' });
+    res.json({ success: true, cv });
   } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
