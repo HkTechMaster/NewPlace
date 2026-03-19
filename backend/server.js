@@ -1,11 +1,11 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const connectDB = require('./config/db');
 
 const app = express();
 connectDB().then(async () => {
-  // Auto-create super admins from .env
   const User = require('./models/User');
   const emails = (process.env.SUPER_ADMIN_EMAILS || process.env.SUPER_ADMIN_EMAIL || '').split(',').map(e=>e.trim().toLowerCase()).filter(Boolean);
   for (const email of emails) {
@@ -17,7 +17,7 @@ connectDB().then(async () => {
   }
 });
 
-app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
+app.use(cors({ origin: '*', credentials: true }));
 app.use(express.json({ limit: '20mb' }));
 app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 
@@ -35,7 +35,12 @@ app.use('/api/student-lists', require('./routes/studentLists'));
 app.use('/api/jobs', require('./routes/jobs'));
 app.use('/api/drives', require('./routes/drives'));
 
-app.use((req, res) => res.status(404).json({ success: false, message: 'Route not found' }));
+// Serve frontend in production
+const frontendPath = path.join(__dirname, '../frontend/dist');
+app.use(express.static(frontendPath));
+app.get('*', (req, res) => {
+  res.sendFile(path.join(frontendPath, 'index.html'));
+});
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`\n🚀 PlacePro API running on port ${PORT}\n`));

@@ -1,9 +1,7 @@
 import axios from 'axios';
 
-// Production mein VITE_API_URL use hoga, local mein proxy use hoga
-if (import.meta.env.VITE_API_URL) {
-  axios.defaults.baseURL = import.meta.env.VITE_API_URL;
-}
+// Same server serve kar raha hai frontend aur backend dono
+axios.defaults.baseURL = '/api';
 
 export const skillFacultyAPI = {
   getAll: () => axios.get('/skill-faculties'),
