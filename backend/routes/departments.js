@@ -8,22 +8,29 @@ const { protect } = require('../middleware/auth');
 // Helper: register chairperson
 const registerChairperson = async (dept, facultyId) => {
   if (!dept.chairpersonEmail) return null;
-  let chair = await Chairperson.findOne({ email: dept.chairpersonEmail });
-  if (!chair) {
-    chair = await Chairperson.create({
-      name: dept.chairpersonName || 'Chairperson',
-      email: dept.chairpersonEmail,
-      skillFaculty: facultyId,
-      departmentCode: dept.code || dept.name,
-      departmentName: dept.name,
-    });
-  } else {
+  const newEmail = dept.chairpersonEmail.toLowerCase();
+
+  // Check if account already exists with this email
+  let chair = await Chairperson.findOne({ email: newEmail });
+  if (chair) {
+    // Update existing account
     chair.skillFaculty = facultyId;
     chair.departmentCode = dept.code || dept.name;
     chair.departmentName = dept.name;
+    if (dept.chairpersonName) chair.name = dept.chairpersonName;
     chair.isActive = true;
     await chair.save();
+    return chair._id;
   }
+
+  // No account with new email — create fresh
+  chair = await Chairperson.create({
+    name: dept.chairpersonName || 'Chairperson',
+    email: newEmail,
+    skillFaculty: facultyId,
+    departmentCode: dept.code || dept.name,
+    departmentName: dept.name,
+  });
   return chair._id;
 };
 
@@ -114,9 +121,17 @@ router.put('/requests/:id/approve', protect, async (req, res) => {
       const oldEmail = existing.chairpersonEmail;
       const newEmail = dept.chairpersonEmail;
       if (newEmail && newEmail !== oldEmail) {
-        if (existing.chairperson) await Chairperson.findByIdAndUpdate(existing.chairperson, { skillFaculty: null });
-        const chairId = await registerChairperson(dept, facultyId);
-        existing.chairperson = chairId;
+        if (existing.chairperson) {
+          // Update email on existing account — courses stay linked
+          await Chairperson.findByIdAndUpdate(existing.chairperson, {
+            email: newEmail,
+            ...(dept.chairpersonName ? { name: dept.chairpersonName } : {}),
+            isActive: true,
+          });
+        } else {
+          const chairId = await registerChairperson(dept, facultyId);
+          existing.chairperson = chairId;
+        }
       } else if (dept.chairpersonName && existing.chairperson) {
         await Chairperson.findByIdAndUpdate(existing.chairperson, { name: dept.chairpersonName });
       }
@@ -177,17 +192,25 @@ router.put('/direct/:facultyId/:deptIndex', protect, async (req, res) => {
     const oldEmail = dept.chairpersonEmail;
     const newEmail = chairpersonEmail?.toLowerCase() || '';
 
-    // If chairperson email changed, update chairperson record
+    // If chairperson email changed
     if (newEmail && newEmail !== oldEmail) {
-      // Deactivate old chairperson link
       if (dept.chairperson) {
-        await Chairperson.findByIdAndUpdate(dept.chairperson, { skillFaculty: null, departmentCode: null });
+        // Simply update the email on the EXISTING account — same _id, same courses
+        await Chairperson.findByIdAndUpdate(dept.chairperson, {
+          email: newEmail,
+          ...(chairpersonName ? { name: chairpersonName } : {}),
+          ...(code ? { departmentCode: code.toUpperCase() } : {}),
+          isActive: true,
+        });
+        // dept.chairperson _id stays the same — courses remain linked
+      } else {
+        // No existing account — create new
+        const chairId = await registerChairperson(
+          { name: chairpersonName, code: code || dept.code, chairpersonName, chairpersonEmail: newEmail },
+          faculty._id
+        );
+        dept.chairperson = chairId;
       }
-      const chairId = await registerChairperson(
-        { name: chairpersonName, code: code || dept.code, chairpersonName, chairpersonEmail: newEmail },
-        faculty._id
-      );
-      dept.chairperson = chairId;
     } else if (chairpersonName && dept.chairperson) {
       await Chairperson.findByIdAndUpdate(dept.chairperson, { name: chairpersonName });
     }
