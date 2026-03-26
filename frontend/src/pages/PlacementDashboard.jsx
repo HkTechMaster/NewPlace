@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
-import { CVPreview } from './CVBuilder';
 import { jobAPI, driveAPI, studentListAPI } from '../utils/api';
 import axios from 'axios';
 import styles from './PlacementDashboard.module.css';
@@ -10,38 +9,66 @@ import styles from './PlacementDashboard.module.css';
 const JOB_TYPES = ['fulltime','parttime','internship','contract'];
 const ROUND_TYPES = ['aptitude','technical','hr','group_discussion','assignment','other'];
 
+function getBlankJob() {
+  return {
+    title:'', company:'', description:'', location:'', jobType:'fulltime',
+    salary:'', eligibleCourses:[], eligibleBatches:[], eligibleSemesters:[],
+    minCgpa:'', requiresLeetcode:false, customRequirements:'',
+    lastDateToApply:'', requiredSkills:[], preferredSkills:[],
+  };
+}
+
+// Tag input component
+function TagInput({ label, tags, onChange, placeholder }) {
+  const [input, setInput] = useState('');
+  const add = () => {
+    const val = input.trim();
+    if (val && !tags.includes(val)) onChange([...tags, val]);
+    setInput('');
+  };
+  return (
+    <div style={{display:'flex',flexDirection:'column',gap:6}}>
+      <label style={{fontSize:'0.73rem',fontWeight:600,color:'var(--text-secondary)'}}>{label}</label>
+      <div style={{display:'flex',flexWrap:'wrap',gap:6,padding:'8px 10px',background:'var(--bg-secondary)',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',minHeight:42}}>
+        {tags.map((t,i) => (
+          <span key={i} style={{display:'flex',alignItems:'center',gap:4,background:'rgba(59,130,246,0.12)',border:'1px solid rgba(59,130,246,0.25)',borderRadius:20,padding:'2px 10px',fontSize:'0.78rem',color:'var(--accent)'}}>
+            {t}
+            <button type="button" onClick={()=>onChange(tags.filter((_,j)=>j!==i))} style={{background:'none',border:'none',color:'var(--accent)',cursor:'pointer',fontSize:'0.9rem',lineHeight:1,padding:'0 2px'}}>×</button>
+          </span>
+        ))}
+        <input
+          value={input}
+          onChange={e=>setInput(e.target.value)}
+          onKeyDown={e=>{if(e.key==='Enter'||e.key===','){e.preventDefault();add();}}}
+          placeholder={tags.length?'':placeholder}
+          style={{border:'none',background:'none',outline:'none',fontSize:'0.825rem',color:'var(--text-primary)',fontFamily:'var(--font-body)',minWidth:120,flex:1}}
+        />
+      </div>
+      <span style={{fontSize:'0.68rem',color:'var(--text-muted)'}}>Press Enter or comma to add</span>
+    </div>
+  );
+}
+
 export default function PlacementDashboard() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('students');
   const [loading, setLoading] = useState(true);
-
-  // Students state
   const [approvedLists, setApprovedLists] = useState([]);
-  const [selectedList, setSelectedList] = useState(null);
-
-  // Jobs state
   const [jobs, setJobs] = useState([]);
+  const [drives, setDrives] = useState([]);
   const [showJobForm, setShowJobForm] = useState(false);
   const [editJob, setEditJob] = useState(null);
   const [jobForm, setJobForm] = useState(getBlankJob());
   const [jobLoading, setJobLoading] = useState(false);
-  const [eligibleStudents, setEligibleStudents] = useState([]);
   const [viewJobStudents, setViewJobStudents] = useState(null);
-
-  // Drives state
-  const [drives, setDrives] = useState([]);
-  const [showDriveForm, setShowDriveForm] = useState(false);
-  const [driveForm, setDriveForm] = useState({ jobId:'', startDate:'', rounds:[{name:'Round 1',type:'aptitude',date:'',venue:''}] });
+  const [viewingCV, setViewingCV] = useState(null);
   const [activeDrive, setActiveDrive] = useState(null);
   const [activeDriveData, setActiveDriveData] = useState(null);
   const [activeRoundIdx, setActiveRoundIdx] = useState(0);
-  const [driveView, setDriveView] = useState('attendance'); // attendance | results | report
-  const [viewingCV, setViewingCV] = useState(null);
+  const [driveView, setDriveView] = useState('attendance');
   const [reportData, setReportData] = useState(null);
-
-  function getBlankJob() {
-    return { title:'', company:'', companyLogo:'', description:'', location:'', jobType:'fulltime', salary:'', eligibleCourses:[], eligibleBatches:[], eligibleSemesters:[], minCgpa:'', requiresLeetcode:false, customRequirements:'', lastDateToApply:'' };
-  }
+  const [showDriveForm, setShowDriveForm] = useState(false);
+  const [driveForm, setDriveForm] = useState({ jobId:'', startDate:'', rounds:[{name:'Round 1',type:'aptitude',date:'',venue:''}] });
 
   useEffect(() => { fetchAll(); }, []);
 
@@ -53,16 +80,13 @@ export default function PlacementDashboard() {
         jobAPI.getAll().catch(() => ({ data: { jobs: [] } })),
         driveAPI.getAll().catch(() => ({ data: { drives: [] } })),
       ]);
-      // listsRes.data.lists is flat array of approved lists
-      const allLists = listsRes.data.lists || [];
-      setApprovedLists(allLists);
+      setApprovedLists(listsRes.data.lists || []);
       setJobs(jobsRes.data.jobs || []);
       setDrives(drivesRes.data.drives || []);
     } catch { toast.error('Failed to load data'); }
     finally { setLoading(false); }
   };
 
-  // ── Job handlers ──────────────────────────────────────────────
   const handleJobSubmit = async (e) => {
     e.preventDefault();
     setJobLoading(true);
@@ -80,7 +104,6 @@ export default function PlacementDashboard() {
     catch (e) { toast.error(e.response?.data?.message||'Failed'); }
   };
 
-  // ── Drive handlers ────────────────────────────────────────────
   const handleCreateDrive = async (e) => {
     e.preventDefault();
     try {
@@ -163,6 +186,7 @@ export default function PlacementDashboard() {
 
   const statusColor = { selected:'var(--success)', rejected:'var(--danger)', in_process:'var(--warning)', next_round:'var(--accent)', pending:'var(--text-muted)' };
 
+  // ── Drive Detail View ──────────────────────────────────────────
   if (activeDrive && activeDriveData) {
     const round = activeDriveData.rounds[activeRoundIdx];
     return (
@@ -181,7 +205,6 @@ export default function PlacementDashboard() {
             </div>
           </div>
 
-          {/* Round tabs */}
           <div className={styles.roundTabs}>
             {activeDriveData.rounds.map((r,i) => (
               <button key={i} className={`${styles.roundTab} ${i===activeRoundIdx?styles.roundTabActive:''}`} onClick={() => setActiveRoundIdx(i)}>
@@ -190,7 +213,6 @@ export default function PlacementDashboard() {
             ))}
           </div>
 
-          {/* View toggle */}
           {driveView !== 'report' && (
             <div className={styles.viewToggle}>
               <button className={`${styles.toggleBtn} ${driveView==='attendance'?styles.toggleActive:''}`} onClick={() => setDriveView('attendance')}>📋 Attendance</button>
@@ -198,7 +220,6 @@ export default function PlacementDashboard() {
             </div>
           )}
 
-          {/* Attendance */}
           {driveView === 'attendance' && round && (
             <div className={styles.attendanceSection}>
               <div className={styles.sectionHeader}>
@@ -209,9 +230,9 @@ export default function PlacementDashboard() {
                 {round.attendance?.map((a, i) => (
                   <div key={i} className={`${styles.attendanceCard} ${a.present?styles.present:styles.absent}`}
                     onClick={() => {
-                      const updated = { ...activeDriveData };
+                      const updated = JSON.parse(JSON.stringify(activeDriveData));
                       updated.rounds[activeRoundIdx].attendance[i].present = !a.present;
-                      setActiveDriveData({ ...updated });
+                      setActiveDriveData(updated);
                     }}>
                     <div className={styles.attName}>{a.name}</div>
                     <div className={styles.attStatus}>{a.present ? '✓ Present' : '✗ Absent'}</div>
@@ -222,7 +243,6 @@ export default function PlacementDashboard() {
             </div>
           )}
 
-          {/* Results */}
           {driveView === 'results' && round && (
             <div className={styles.resultsSection}>
               <div className={styles.sectionHeader}><h3>{round.name} — Results</h3></div>
@@ -235,9 +255,9 @@ export default function PlacementDashboard() {
                       <td>
                         <select className={styles.statusSelect} value={r.status} style={{color:statusColor[r.status]}}
                           onChange={e => {
-                            const updated = { ...activeDriveData };
+                            const updated = JSON.parse(JSON.stringify(activeDriveData));
                             updated.rounds[activeRoundIdx].results[i].status = e.target.value;
-                            setActiveDriveData({ ...updated });
+                            setActiveDriveData(updated);
                           }}>
                           <option value="pending">Pending</option>
                           <option value="next_round">Next Round</option>
@@ -247,26 +267,18 @@ export default function PlacementDashboard() {
                       </td>
                       <td>
                         <input className={styles.remarksInput} value={r.remarks||''} placeholder="Remarks..." onChange={e=>{
-                          const updated={...activeDriveData};
+                          const updated=JSON.parse(JSON.stringify(activeDriveData));
                           updated.rounds[activeRoundIdx].results[i].remarks=e.target.value;
-                          setActiveDriveData({...updated});
+                          setActiveDriveData(updated);
                         }}/>
                       </td>
                       <td>
-                        {(() => {
-                          const p = activeDriveData.participants.find(p => p.student.toString() === r.student.toString());
-                          return p ? (
-                            <button className={styles.viewCVBtn} onClick={async () => {
-                              try {
-                                // Get verified CV for this student
-                                const res = await axios.get(`/cv/student-verified/${r.student}`);
-                                setViewingCV(res.data.cv);
-                              } catch {
-                                toast.error('No verified CV found for this student');
-                              }
-                            }}>View CV</button>
-                          ) : null;
-                        })()}
+                        <button className={styles.viewCVBtn} onClick={async () => {
+                          try {
+                            const res = await axios.get(`/cv/student-verified/${r.student}`);
+                            setViewingCV(res.data.cv);
+                          } catch { toast.error('No verified CV found'); }
+                        }}>View CV</button>
                       </td>
                     </tr>
                   ))}
@@ -276,26 +288,15 @@ export default function PlacementDashboard() {
             </div>
           )}
 
-          {/* Report */}
           {driveView === 'report' && reportData && (
             <div className={styles.reportSection}>
               <button className={styles.backBtn} style={{marginBottom:16}} onClick={() => setDriveView('attendance')}>← Back</button>
               <div className={styles.reportSummary}>
-                <div className={styles.reportStat} style={{borderColor:'var(--accent)'}}>
-                  <div className={styles.reportStatVal}>{reportData.summary.total}</div><div>Total</div>
-                </div>
-                <div className={styles.reportStat} style={{borderColor:'var(--success)'}}>
-                  <div className={styles.reportStatVal} style={{color:'var(--success)'}}>{reportData.summary.selected}</div><div>Selected</div>
-                </div>
-                <div className={styles.reportStat} style={{borderColor:'var(--danger)'}}>
-                  <div className={styles.reportStatVal} style={{color:'var(--danger)'}}>{reportData.summary.rejected}</div><div>Rejected</div>
-                </div>
-                <div className={styles.reportStat} style={{borderColor:'var(--warning)'}}>
-                  <div className={styles.reportStatVal} style={{color:'var(--warning)'}}>{reportData.summary.inProcess}</div><div>In Process</div>
-                </div>
+                <div className={styles.reportStat} style={{borderColor:'var(--accent)'}}><div className={styles.reportStatVal}>{reportData.summary.total}</div><div>Total</div></div>
+                <div className={styles.reportStat} style={{borderColor:'var(--success)'}}><div className={styles.reportStatVal} style={{color:'var(--success)'}}>{reportData.summary.selected}</div><div>Selected</div></div>
+                <div className={styles.reportStat} style={{borderColor:'var(--danger)'}}><div className={styles.reportStatVal} style={{color:'var(--danger)'}}>{reportData.summary.rejected}</div><div>Rejected</div></div>
+                <div className={styles.reportStat} style={{borderColor:'var(--warning)'}}><div className={styles.reportStatVal} style={{color:'var(--warning)'}}>{reportData.summary.inProcess}</div><div>In Process</div></div>
               </div>
-
-              {/* Selected students + offer letter upload */}
               {reportData.selected?.length > 0 && (
                 <div className={styles.reportList}>
                   <div className={styles.reportListTitle} style={{color:'var(--success)'}}>✓ Selected Students</div>
@@ -308,10 +309,7 @@ export default function PlacementDashboard() {
                         <div style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:8}}>
                           {p?.offerLetter
                             ? <span style={{fontSize:'0.75rem',color:'var(--success)'}}>✓ Offer uploaded</span>
-                            : <label className={styles.uploadOfferBtn}>
-                                📎 Upload Offer
-                                <input type="file" accept=".pdf,image/*" style={{display:'none'}} onChange={e=>handleUploadOffer(s.student,e.target.files[0])}/>
-                              </label>
+                            : <label className={styles.uploadOfferBtn}>📎 Upload Offer<input type="file" accept=".pdf,image/*" style={{display:'none'}} onChange={e=>handleUploadOffer(s.student,e.target.files[0])}/></label>
                           }
                         </div>
                       </div>
@@ -319,8 +317,6 @@ export default function PlacementDashboard() {
                   })}
                 </div>
               )}
-
-              {/* Rounds summary */}
               <div className={styles.reportRounds}>
                 <div className={styles.reportListTitle}>Round Summary</div>
                 {reportData.rounds.map((r,i) => (
@@ -335,12 +331,11 @@ export default function PlacementDashboard() {
             </div>
           )}
         </main>
-
         {viewingCV && (
           <div className={styles.overlay} onClick={e=>e.target===e.currentTarget&&setViewingCV(null)}>
             <div className={styles.cvModal}>
               <div className={styles.cvModalHeader}><h3>Student CV</h3><button onClick={()=>setViewingCV(null)}>✕</button></div>
-              <div style={{overflow:'auto',padding:24}}><CVPreview data={viewingCV}/></div>
+              <div style={{overflow:'auto',padding:24,maxHeight:'75vh'}}><pre style={{whiteSpace:'pre-wrap',color:'var(--text-primary)',fontSize:'0.8rem'}}>{JSON.stringify(viewingCV,null,2)}</pre></div>
             </div>
           </div>
         )}
@@ -352,8 +347,6 @@ export default function PlacementDashboard() {
     <div className={styles.page}>
       <Navbar/>
       <main className={styles.main}>
-
-        {/* Header */}
         <div className={styles.header}>
           <div className={styles.headerLeft}>
             {user?.avatar ? <img src={user.avatar} alt="" className={styles.avatar}/> : <div className={styles.avatarFallback}>{user?.name?.charAt(0)}</div>}
@@ -364,7 +357,6 @@ export default function PlacementDashboard() {
           </div>
         </div>
 
-        {/* Stats */}
         <div className={styles.statsRow}>
           <div className={styles.statCard}><div className={styles.statVal}>{approvedLists.reduce((a,l)=>a+(l.students?.length||0),0)}</div><div className={styles.statLabel}>Eligible Students</div></div>
           <div className={styles.statCard}><div className={styles.statVal}>{jobs.length}</div><div className={styles.statLabel}>Active Jobs</div></div>
@@ -372,7 +364,6 @@ export default function PlacementDashboard() {
           <div className={styles.statCard}><div className={styles.statVal}>{drives.filter(d=>d.driveStatus==='completed').length}</div><div className={styles.statLabel}>Completed</div></div>
         </div>
 
-        {/* Tabs */}
         <div className={styles.tabs}>
           {['students','jobs','drives'].map(t => (
             <button key={t} className={`${styles.tab} ${activeTab===t?styles.tabActive:''}`} onClick={()=>setActiveTab(t)}>
@@ -385,16 +376,16 @@ export default function PlacementDashboard() {
           <div className={styles.loading}><span className="spinner" style={{width:28,height:28}}/><span>Loading...</span></div>
         ) : (<>
 
-          {/* ── STUDENTS TAB ── */}
+          {/* STUDENTS TAB */}
           {activeTab === 'students' && (
             <div className={styles.tabContent}>
               <div className={styles.sectionHeader}><h3>Chairperson-Approved Student Lists</h3></div>
               {!approvedLists.length ? (
-                <div className={styles.empty}><div className={styles.emptyIcon}>👥</div><h3>No Approved Lists Yet</h3><p>Chairperson needs to approve coordinator lists first.</p></div>
+                <div className={styles.empty}><div className={styles.emptyIcon}>👥</div><h3>No Approved Lists Yet</h3></div>
               ) : (
                 <div className={styles.listsGrid}>
                   {approvedLists.map(list => (
-                    <div key={list._id} className={styles.listCard} onClick={() => setSelectedList(selectedList?._id===list._id ? null : list)}>
+                    <div key={list._id} className={styles.listCard}>
                       <div className={styles.listCardTop}>
                         <div className={styles.listName}>{list.name}</div>
                         <span className={styles.approvedBadge}>✓ Approved</span>
@@ -404,9 +395,9 @@ export default function PlacementDashboard() {
                         <span>📅 Batch {list.batch}</span>
                         <span>👥 {list.students?.length} students</span>
                       </div>
-                      {selectedList?._id === list._id && (
+                      {list.students?.length > 0 && (
                         <div className={styles.studentsList}>
-                          {list.students?.map((s,i) => (
+                          {list.students.map((s,i) => (
                             <div key={i} className={styles.studentRow}>
                               {s.photo ? <img src={s.photo} alt="" className={styles.sPhoto}/> : <div className={styles.sPhotoFallback}>{s.name?.charAt(0)}</div>}
                               <div><div className={styles.sName}>{s.name}</div><div className={styles.sEmail}>{s.email}</div></div>
@@ -431,7 +422,7 @@ export default function PlacementDashboard() {
             </div>
           )}
 
-          {/* ── JOBS TAB ── */}
+          {/* JOBS TAB */}
           {activeTab === 'jobs' && (
             <div className={styles.tabContent}>
               <div className={styles.sectionHeader}>
@@ -457,6 +448,21 @@ export default function PlacementDashboard() {
                         {job.minCgpa > 0 && <span>📊 Min CGPA: {job.minCgpa}</span>}
                         <span>👥 {job.applications?.length||0} applied</span>
                       </div>
+                      {/* Skills display */}
+                      {job.requiredSkills?.length > 0 && (
+                        <div style={{display:'flex',flexWrap:'wrap',gap:4,marginTop:4}}>
+                          {job.requiredSkills.map((s,i) => (
+                            <span key={i} style={{fontSize:'0.65rem',padding:'2px 8px',borderRadius:10,background:'rgba(239,68,68,0.1)',border:'1px solid rgba(239,68,68,0.2)',color:'var(--danger)'}}>⚡ {s}</span>
+                          ))}
+                        </div>
+                      )}
+                      {job.preferredSkills?.length > 0 && (
+                        <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
+                          {job.preferredSkills.map((s,i) => (
+                            <span key={i} style={{fontSize:'0.65rem',padding:'2px 8px',borderRadius:10,background:'rgba(16,185,129,0.08)',border:'1px solid rgba(16,185,129,0.2)',color:'var(--success)'}}>✓ {s}</span>
+                          ))}
+                        </div>
+                      )}
                       {job.lastDateToApply && <div className={styles.deadline}>Deadline: {new Date(job.lastDateToApply).toLocaleDateString('en-IN')}</div>}
                       <div className={styles.jobActions}>
                         <button className={styles.viewStudentsBtn} onClick={async () => {
@@ -464,7 +470,14 @@ export default function PlacementDashboard() {
                           setViewJobStudents({ job, students: res.data.students });
                         }}>👁 Eligible</button>
                         <button className={styles.remindJobBtn} onClick={() => handleRemindJob(job._id, job.company)}>📧 Remind</button>
-                        <button className={styles.editJobBtn} onClick={() => { setEditJob(job); setJobForm({...job, minCgpa:job.minCgpa||'', lastDateToApply: job.lastDateToApply ? new Date(job.lastDateToApply).toISOString().split('T')[0] : '' }); setShowJobForm(true); }}>✏️</button>
+                        <button className={styles.editJobBtn} onClick={() => {
+                          setEditJob(job);
+                          setJobForm({...job, minCgpa:job.minCgpa||'', lastDateToApply: job.lastDateToApply ? new Date(job.lastDateToApply).toISOString().split('T')[0] : '',
+                            requiredSkills: job.requiredSkills||[], preferredSkills: job.preferredSkills||[],
+                            eligibleCourses: job.eligibleCourses?.map(c=>c._id||c)||[],
+                          });
+                          setShowJobForm(true);
+                        }}>✏️</button>
                         <button className={styles.createDriveBtn} onClick={() => { setDriveForm(f=>({...f,jobId:job._id})); setShowDriveForm(true); setActiveTab('drives'); }}>🚀 Drive</button>
                       </div>
                     </div>
@@ -474,7 +487,7 @@ export default function PlacementDashboard() {
             </div>
           )}
 
-          {/* ── DRIVES TAB ── */}
+          {/* DRIVES TAB */}
           {activeTab === 'drives' && (
             <div className={styles.tabContent}>
               <div className={styles.sectionHeader}>
@@ -482,7 +495,7 @@ export default function PlacementDashboard() {
                 <button className={styles.addBtn} onClick={() => setShowDriveForm(true)}>+ New Drive</button>
               </div>
               {!drives.length ? (
-                <div className={styles.empty}><div className={styles.emptyIcon}>🚀</div><h3>No Drives Yet</h3><p>Create a drive from a posted job.</p></div>
+                <div className={styles.empty}><div className={styles.emptyIcon}>🚀</div><h3>No Drives Yet</h3></div>
               ) : (
                 <div className={styles.drivesGrid}>
                   {drives.map(drive => {
@@ -534,10 +547,10 @@ export default function PlacementDashboard() {
                 </div>
                 <div className={styles.field}><label>Salary / Package</label><input className={styles.input} value={jobForm.salary} onChange={e=>setJobForm(f=>({...f,salary:e.target.value}))} placeholder="e.g. 6 LPA"/></div>
                 <div className={styles.field}><label>Last Date to Apply</label><input className={styles.input} type="date" value={jobForm.lastDateToApply} onChange={e=>setJobForm(f=>({...f,lastDateToApply:e.target.value}))}/></div>
-                <div className={styles.field}><label>Min CGPA <span style={{color:'var(--text-muted)',fontWeight:400}}>(0 = no filter)</span></label><input className={styles.input} type="number" step="0.1" min="0" max="10" value={jobForm.minCgpa} onChange={e=>setJobForm(f=>({...f,minCgpa:e.target.value}))} placeholder="e.g. 7.5"/></div>
+                <div className={styles.field}><label>Min CGPA (0 = no filter)</label><input className={styles.input} type="number" step="0.1" min="0" max="10" value={jobForm.minCgpa} onChange={e=>setJobForm(f=>({...f,minCgpa:e.target.value}))} placeholder="e.g. 7.5"/></div>
               </div>
 
-              {/* Eligible Courses — checkboxes from approved lists */}
+              {/* Eligible Courses checkboxes */}
               {(() => {
                 const uniqueCourses = [];
                 const seen = new Set();
@@ -550,19 +563,15 @@ export default function PlacementDashboard() {
                 });
                 return uniqueCourses.length > 0 && (
                   <div className={styles.field}>
-                    <label>Eligible Courses <span style={{color:'var(--text-muted)',fontWeight:400}}>(select all that apply)</span></label>
+                    <label>Eligible Courses</label>
                     <div className={styles.checkboxGrid}>
                       {uniqueCourses.map(c => (
                         <label key={c.id} className={styles.checkboxItem}>
                           <input type="checkbox"
                             checked={jobForm.eligibleCourses?.includes(c.id)||false}
                             onChange={e => setJobForm(f => ({
-                              ...f,
-                              eligibleCourses: e.target.checked
-                                ? [...(f.eligibleCourses||[]), c.id]
-                                : (f.eligibleCourses||[]).filter(x => x !== c.id)
-                            }))}
-                          />
+                              ...f, eligibleCourses: e.target.checked ? [...(f.eligibleCourses||[]), c.id] : (f.eligibleCourses||[]).filter(x => x !== c.id)
+                            }))}/>
                           <span>{c.code ? `${c.code} — ` : ''}{c.name}</span>
                         </label>
                       ))}
@@ -571,24 +580,20 @@ export default function PlacementDashboard() {
                 );
               })()}
 
-              {/* Eligible Batches — checkboxes from approved lists */}
+              {/* Eligible Batches checkboxes */}
               {(() => {
                 const uniqueBatches = [...new Set(approvedLists.map(l => l.batch).filter(Boolean))].sort();
                 return uniqueBatches.length > 0 && (
                   <div className={styles.field}>
-                    <label>Eligible Batches <span style={{color:'var(--text-muted)',fontWeight:400}}>(select all that apply)</span></label>
+                    <label>Eligible Batches</label>
                     <div className={styles.checkboxGrid}>
                       {uniqueBatches.map(b => (
                         <label key={b} className={styles.checkboxItem}>
                           <input type="checkbox"
                             checked={jobForm.eligibleBatches?.includes(b)||false}
                             onChange={e => setJobForm(f => ({
-                              ...f,
-                              eligibleBatches: e.target.checked
-                                ? [...(f.eligibleBatches||[]), b]
-                                : (f.eligibleBatches||[]).filter(x => x !== b)
-                            }))}
-                          />
+                              ...f, eligibleBatches: e.target.checked ? [...(f.eligibleBatches||[]), b] : (f.eligibleBatches||[]).filter(x => x !== b)
+                            }))}/>
                           <span>{b}</span>
                         </label>
                       ))}
@@ -597,13 +602,27 @@ export default function PlacementDashboard() {
                 );
               })()}
 
+              {/* Skills */}
+              <TagInput
+                label="Required Skills ⚡ (company must have)"
+                tags={jobForm.requiredSkills||[]}
+                onChange={v=>setJobForm(f=>({...f,requiredSkills:v}))}
+                placeholder="e.g. Python, React, Node.js..."
+              />
+              <TagInput
+                label="Preferred Skills ✓ (good to have)"
+                tags={jobForm.preferredSkills||[]}
+                onChange={v=>setJobForm(f=>({...f,preferredSkills:v}))}
+                placeholder="e.g. Docker, AWS, MongoDB..."
+              />
+
               <div className={styles.field}>
                 <label>Job Description (JD)</label>
-                <textarea className={styles.textarea} rows={4} value={jobForm.description} onChange={e=>setJobForm(f=>({...f,description:e.target.value}))} placeholder="Full job description, responsibilities, requirements..."/>
+                <textarea className={styles.textarea} rows={4} value={jobForm.description} onChange={e=>setJobForm(f=>({...f,description:e.target.value}))} placeholder="Full job description..."/>
               </div>
               <div className={styles.field}>
                 <label>Custom Requirements</label>
-                <textarea className={styles.textarea} rows={2} value={jobForm.customRequirements} onChange={e=>setJobForm(f=>({...f,customRequirements:e.target.value}))} placeholder="e.g. LeetCode 100+ problems, specific certifications..."/>
+                <textarea className={styles.textarea} rows={2} value={jobForm.customRequirements} onChange={e=>setJobForm(f=>({...f,customRequirements:e.target.value}))} placeholder="e.g. LeetCode 100+ problems..."/>
               </div>
               <div className={styles.field}>
                 <label style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer'}}>
@@ -633,7 +652,7 @@ export default function PlacementDashboard() {
                 </select>
               </div>
               <div className={styles.field}><label>Drive Start Date</label><input className={styles.input} type="date" value={driveForm.startDate} onChange={e=>setDriveForm(f=>({...f,startDate:e.target.value}))}/></div>
-              <div className={styles.sectionTitle} style={{margin:'12px 0 8px',fontSize:'0.7rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.1em',color:'var(--text-muted)'}}>Initial Rounds</div>
+              <div style={{fontSize:'0.7rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.1em',color:'var(--text-muted)',margin:'12px 0 8px'}}>Initial Rounds</div>
               {driveForm.rounds.map((r,i) => (
                 <div key={i} className={styles.roundRow}>
                   <input className={styles.input} value={r.name} onChange={e=>{const arr=[...driveForm.rounds];arr[i]={...arr[i],name:e.target.value};setDriveForm(f=>({...f,rounds:arr}))}} placeholder="Round name"/>
@@ -663,7 +682,6 @@ export default function PlacementDashboard() {
                 <div key={i} className={styles.studentRow} style={{borderBottom:'1px solid var(--border)',paddingBottom:10,marginBottom:10}}>
                   {s.photo?<img src={s.photo} alt="" className={styles.sPhoto}/>:<div className={styles.sPhotoFallback}>{s.name?.charAt(0)}</div>}
                   <div><div className={styles.sName}>{s.name}</div><div className={styles.sEmail}>{s.email}</div></div>
-                  <span className={styles.sSem}>Sem {s.semester}</span>
                 </div>
               ))}
             </div>
@@ -675,7 +693,7 @@ export default function PlacementDashboard() {
         <div className={styles.overlay} onClick={e=>e.target===e.currentTarget&&setViewingCV(null)}>
           <div className={styles.cvModal}>
             <div className={styles.cvModalHeader}><h3>Student CV</h3><button onClick={()=>setViewingCV(null)}>✕</button></div>
-            <div style={{overflow:'auto',padding:24}}><CVPreview data={viewingCV}/></div>
+            <div style={{overflow:'auto',padding:24,maxHeight:'75vh'}}><pre style={{whiteSpace:'pre-wrap',color:'var(--text-primary)',fontSize:'0.8rem'}}>{JSON.stringify(viewingCV,null,2)}</pre></div>
           </div>
         </div>
       )}

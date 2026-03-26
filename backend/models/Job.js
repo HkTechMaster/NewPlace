@@ -19,6 +19,10 @@ const jobSchema = new mongoose.Schema({
   requiresLeetcode: { type: Boolean, default: false },
   customRequirements: { type: String, default: '' },
 
+  // Skills — display only, not hard filter
+  requiredSkills: [String],
+  preferredSkills: [String],
+
   // Applications
   applications: [{
     student: { type: mongoose.Schema.Types.ObjectId, ref: 'Student' },
