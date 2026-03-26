@@ -184,7 +184,10 @@ router.post('/forgot-password', async (req, res) => {
       message: `OTP sent to ${student.email.replace(/(.{2}).+(@.+)/, '$1***$2')}`,
       maskedEmail: student.email.replace(/(.{2}).+(@.+)/, '$1***$2'),
     });
-  } catch (e) { res.status(500).json({ success: false, message: 'Failed to send OTP. Check server email config.' }); }
+  } catch (e) {
+    console.error('Forgot password error:', e.message);
+    res.status(500).json({ success: false, message: e.message || 'Failed to send OTP. Check server email config.' });
+  }
 });
 
 // ── POST /api/student-auth/verify-otp ────────────────────────────
