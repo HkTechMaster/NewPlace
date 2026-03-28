@@ -1,6 +1,5 @@
 import axios from 'axios';
 
-// Same server serve kar raha hai frontend aur backend dono
 axios.defaults.baseURL = '/api';
 
 export const skillFacultyAPI = {
@@ -40,41 +39,32 @@ export const studentAPI = {
 };
 
 export const cvAPI = {
-  // Student
   getMine: () => axios.get('/cv/mine'),
   create: (data) => axios.post('/cv/create', data),
   update: (id, data) => axios.put(`/cv/${id}`, data),
   submit: (id) => axios.post(`/cv/${id}/submit`),
   delete: (id) => axios.delete(`/cv/${id}`),
   dismissReminder: (id) => axios.post(`/cv/${id}/dismiss-reminder`),
-  // Coordinator
   getRequests: () => axios.get('/cv/requests'),
   getStudentsList: () => axios.get('/cv/students-list'),
   getById: (id) => axios.get(`/cv/${id}`),
+  getVerifiedByStudent: (studentId) => axios.get(`/cv/student-verified/${studentId}`),
   verify: (id) => axios.put(`/cv/${id}/verify`),
   reject: (id, reason) => axios.put(`/cv/${id}/reject`, { reason }),
   remind: (id) => axios.post(`/cv/${id}/remind`),
 };
 
 export const studentListAPI = {
-  // Coordinator
   getMine: () => axios.get('/student-lists/mine'),
   create: (data) => axios.post('/student-lists/create', data),
   resend: (id, data) => axios.put(`/student-lists/${id}/resend`, data),
   delete: (id) => axios.delete(`/student-lists/${id}`),
-  // Chairperson
   getInbox: () => axios.get('/student-lists/inbox'),
   getById: (id) => axios.get(`/student-lists/${id}`),
   approve: (id) => axios.put(`/student-lists/${id}/approve`),
   reject: (id, reason) => axios.put(`/student-lists/${id}/reject`, { reason }),
   removeFromInbox: (id) => axios.put(`/student-lists/${id}/remove-inbox`),
-  // Placement Officer
   getApproved: () => axios.get('/student-lists/approved'),
-};
-
-export const usersAPI = {
-  getDeans: () => axios.get('/users/deans'),
-  getStats: () => axios.get('/users/stats'),
 };
 
 export const jobAPI = {
@@ -84,7 +74,9 @@ export const jobAPI = {
   update: (id, data) => axios.put(`/jobs/${id}`, data),
   delete: (id) => axios.delete(`/jobs/${id}`),
   getEligibleStudents: (id) => axios.get(`/jobs/${id}/eligible-students`),
-  apply: (id) => axios.post(`/jobs/${id}/apply`),
+  getApplicants: (id) => axios.get(`/jobs/${id}/applicants`),
+  apply: (id, data) => axios.post(`/jobs/${id}/apply`, data),
+  updateApplicantStatus: (jobId, studentId, status) => axios.put(`/jobs/${jobId}/applicants/${studentId}/status`, { status }),
   addStudent: (id, studentId) => axios.post(`/jobs/${id}/add-student`, { studentId }),
   remind: (id) => axios.post(`/jobs/${id}/remind`),
 };
@@ -105,4 +97,9 @@ export const placementOfficerAPI = {
   getAll: () => axios.get('/users/placement-officers'),
   create: (data) => axios.post('/users/placement-officers', data),
   delete: (id) => axios.delete(`/users/placement-officers/${id}`),
+};
+
+export const usersAPI = {
+  getDeans: () => axios.get('/users/deans'),
+  getStats: () => axios.get('/users/stats'),
 };

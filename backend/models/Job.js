@@ -3,7 +3,6 @@ const mongoose = require('mongoose');
 const jobSchema = new mongoose.Schema({
   title: { type: String, required: true, trim: true },
   company: { type: String, required: true, trim: true },
-  companyLogo: { type: String, default: '' },
   description: { type: String, default: '' },
   location: { type: String, default: '' },
   jobType: { type: String, enum: ['fulltime','parttime','internship','contract'], default: 'fulltime' },
@@ -18,23 +17,22 @@ const jobSchema = new mongoose.Schema({
   minCgpa: { type: Number, default: 0 },
   requiresLeetcode: { type: Boolean, default: false },
   customRequirements: { type: String, default: '' },
-
-  // Skills — display only, not hard filter
   requiredSkills: [String],
   preferredSkills: [String],
 
   // Applications
   applications: [{
     student: { type: mongoose.Schema.Types.ObjectId, ref: 'Student' },
+    cvId: { type: mongoose.Schema.Types.ObjectId, ref: 'CV', default: null },
+    consent: { type: Boolean, default: false },
     appliedAt: { type: Date, default: Date.now },
     status: { type: String, enum: ['applied','shortlisted','rejected','selected'], default: 'applied' },
     addedBy: { type: String, enum: ['student','po'], default: 'student' },
   }],
 
-  applyDeadline: { type: Date, default: null },
-  reminderSentAt: { type: Date, default: null },
   isActive: { type: Boolean, default: true },
   lastDateToApply: { type: Date, default: null },
+  reminderSentAt: { type: Date, default: null },
 }, { timestamps: true, collection: 'jobs' });
 
 module.exports = mongoose.model('Job', jobSchema);

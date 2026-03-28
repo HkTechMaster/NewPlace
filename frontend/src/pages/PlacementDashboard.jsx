@@ -3,6 +3,7 @@ import { toast } from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import { jobAPI, driveAPI, studentListAPI } from '../utils/api';
+import ApplicantsTab from './ApplicantsTab';
 import axios from 'axios';
 import styles from './PlacementDashboard.module.css';
 
@@ -365,9 +366,14 @@ export default function PlacementDashboard() {
         </div>
 
         <div className={styles.tabs}>
-          {['students','jobs','drives'].map(t => (
+          {['students','jobs','drives','applicants'].map(t => (
             <button key={t} className={`${styles.tab} ${activeTab===t?styles.tabActive:''}`} onClick={()=>setActiveTab(t)}>
               {t.charAt(0).toUpperCase()+t.slice(1)}
+              {t==='applicants' && jobs.reduce((a,j)=>a+(j.applications?.length||0),0) > 0 && (
+                <span style={{marginLeft:6,background:'var(--accent)',color:'white',fontSize:'0.6rem',fontWeight:700,padding:'1px 6px',borderRadius:10}}>
+                  {jobs.reduce((a,j)=>a+(j.applications?.length||0),0)}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -524,6 +530,14 @@ export default function PlacementDashboard() {
               )}
             </div>
           )}
+          {/* APPLICANTS TAB */}
+          {activeTab === 'applicants' && (
+            <div className={styles.tabContent}>
+              <div className={styles.sectionHeader}><h3>Job Applicants</h3></div>
+              <ApplicantsTab jobs={jobs} approvedLists={approvedLists} onRefresh={fetchAll} />
+            </div>
+          )}
+
         </>)}
       </main>
 
