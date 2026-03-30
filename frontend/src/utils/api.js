@@ -103,3 +103,10 @@ export const usersAPI = {
   getDeans: () => axios.get('/users/deans'),
   getStats: () => axios.get('/users/stats'),
 };
+
+export const notificationAPI = {
+  getAll: () => axios.get('/notifications'),
+  markRead: (id) => axios.put(`/notifications/${id}/read`),
+  markAllRead: () => axios.put('/notifications/mark-all-read'),
+  delete: (id) => axios.delete(`/notifications/${id}`),
+};

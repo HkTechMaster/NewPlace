@@ -7,7 +7,8 @@ const connectDB = require('./config/db');
 const app = express();
 connectDB().then(async () => {
   const User = require('./models/User');
-  const emails = (process.env.SUPER_ADMIN_EMAILS || process.env.SUPER_ADMIN_EMAIL || '').split(',').map(e=>e.trim().toLowerCase()).filter(Boolean);
+  const emails = (process.env.SUPER_ADMIN_EMAILS || process.env.SUPER_ADMIN_EMAIL || '')
+    .split(',').map(e=>e.trim().toLowerCase()).filter(Boolean);
   for (const email of emails) {
     const exists = await User.findOne({ email });
     if (!exists) {
@@ -34,8 +35,9 @@ app.use('/api/cv', require('./routes/cv'));
 app.use('/api/student-lists', require('./routes/studentLists'));
 app.use('/api/jobs', require('./routes/jobs'));
 app.use('/api/drives', require('./routes/drives'));
+app.use('/api/notifications', require('./routes/notifications'));
 
-// Serve frontend in production
+// Serve frontend
 const frontendPath = path.join(__dirname, '../frontend/dist');
 app.use(express.static(frontendPath));
 app.get('*', (req, res) => {

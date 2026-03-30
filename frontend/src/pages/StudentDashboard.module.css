@@ -3,9 +3,9 @@
 .loading { display:flex; align-items:center; justify-content:center; gap:14px; padding:120px 0; color:var(--text-muted); font-family:var(--font-body); }
 
 /* Hero */
-.hero { position:relative; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; margin-bottom:20px; animation:fadeIn 0.5s ease both; }
+.hero { position:relative; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); overflow:visible; margin-bottom:20px; animation:fadeIn 0.5s ease both; }
 .heroBg { position:absolute; inset:0; background:linear-gradient(135deg,rgba(16,185,129,0.06) 0%,transparent 60%); pointer-events:none; }
-.heroContent { position:relative; display:flex; align-items:center; justify-content:space-between; padding:24px 28px; gap:20px; flex-wrap:wrap; }
+.heroContent { position:relative; display:flex; align-items:center; justify-content:space-between; overflow: visible; padding:24px 28px; gap:20px; flex-wrap:wrap; }
 .heroLeft { display:flex; align-items:center; gap:16px; }
 .heroPhoto { width:72px; height:72px; border-radius:50%; object-fit:cover; border:3px solid rgba(16,185,129,0.3); flex-shrink:0; }
 .heroPhotoFallback { width:72px; height:72px; border-radius:50%; background:linear-gradient(135deg,#10b981,#059669); color:white; display:flex; align-items:center; justify-content:center; font-size:1.8rem; font-weight:800; font-family:var(--font-display); flex-shrink:0; }
@@ -18,6 +18,12 @@
 .heroStat span { font-family:var(--font-display); font-size:0.95rem; font-weight:700; color:var(--text-primary); text-align:center; max-width:140px; }
 .heroStat small { font-size:0.62rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-muted); margin-top:3px; font-weight:600; }
 .heroStatDivider { width:1px; height:36px; background:var(--border); }
+.bellWrapper {
+  position: absolute;
+  top: 18px;
+  right: 22px;
+  z-index: 20;
+}
 
 /* Reminder banner */
 .reminderBanner { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 18px; background:rgba(245,158,11,0.07); border:1px solid rgba(245,158,11,0.3); border-radius:var(--radius-sm); margin-bottom:20px; animation:fadeIn 0.3s ease both; }

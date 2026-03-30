@@ -1,3 +1,4 @@
+import NotificationBell from '../components/NotificationBell';
 import PlacementSection from './PlacementSection';
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
@@ -38,7 +39,7 @@ export default function StudentDashboard() {
   };
 
   const verifiedCV = cvs.find(c => c.status === 'verified');
-  const pendingCV  = cvs.find(c => c.status === 'pending');
+  const pendingCV = cvs.find(c => c.status === 'pending');
   const isFullyVerified = !!verifiedCV;
 
   // Reminder — find any CV with unread reminder
@@ -82,10 +83,10 @@ export default function StudentDashboard() {
 
   // Status display config
   const statusConfig = {
-    draft:    { label: 'Draft',           color: 'var(--text-muted)',  bg: 'var(--bg-secondary)', border: 'var(--border)' },
-    pending:  { label: '⏳ Under Review', color: 'var(--warning)',     bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.3)' },
-    verified: { label: '✓ Verified',      color: 'var(--success)',     bg: 'rgba(16,185,129,0.08)', border: 'rgba(16,185,129,0.3)' },
-    rejected: { label: '✗ Changes Needed',color: 'var(--danger)',      bg: 'rgba(239,68,68,0.07)', border: 'rgba(239,68,68,0.25)' },
+    draft: { label: 'Draft', color: 'var(--text-muted)', bg: 'var(--bg-secondary)', border: 'var(--border)' },
+    pending: { label: '⏳ Under Review', color: 'var(--warning)', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.3)' },
+    verified: { label: '✓ Verified', color: 'var(--success)', bg: 'rgba(16,185,129,0.08)', border: 'rgba(16,185,129,0.3)' },
+    rejected: { label: '✗ Changes Needed', color: 'var(--danger)', bg: 'rgba(239,68,68,0.07)', border: 'rgba(239,68,68,0.25)' },
   };
 
   if (buildingCV !== null) {
@@ -101,7 +102,7 @@ export default function StudentDashboard() {
 
   if (loading) return (
     <div className={styles.page}><Navbar />
-      <div className={styles.loading}><span className="spinner" style={{width:32,height:32}}/><span>Loading...</span></div>
+      <div className={styles.loading}><span className="spinner" style={{ width: 32, height: 32 }} /><span>Loading...</span></div>
     </div>
   );
 
@@ -112,11 +113,17 @@ export default function StudentDashboard() {
 
         {/* Hero */}
         <div className={styles.hero}>
-          <div className={styles.heroBg}/>
+          <div className={styles.heroBg} />
+
+          {/* ✅ NEW — Bell at top right */}
+          <div className={styles.bellWrapper}>
+            <NotificationBell />
+          </div>
+
           <div className={styles.heroContent}>
             <div className={styles.heroLeft}>
               {student?.photo
-                ? <img src={student.photo} alt="" className={styles.heroPhoto}/>
+                ? <img src={student.photo} alt="" className={styles.heroPhoto} />
                 : <div className={styles.heroPhotoFallback}>{student?.name?.charAt(0)}</div>
               }
               <div className={styles.heroInfo}>
@@ -124,21 +131,20 @@ export default function StudentDashboard() {
                 <h1 className={styles.heroName}>{student?.name}</h1>
                 <div className={styles.heroBadges}>
                   {isFullyVerified
-                    ? <span className={styles.heroBadge} style={{background:'rgba(16,185,129,0.15)',color:'var(--success)',border:'1px solid rgba(16,185,129,0.3)'}}>✓ CV Verified</span>
+                    ? <span className={styles.heroBadge} style={{ background: 'rgba(16,185,129,0.15)', color: 'var(--success)', border: '1px solid rgba(16,185,129,0.3)' }}>✓ CV Verified</span>
                     : pendingCV
-                    ? <span className={styles.heroBadge} style={{background:'rgba(245,158,11,0.12)',color:'var(--warning)',border:'1px solid rgba(245,158,11,0.3)'}}>⏳ CV Pending</span>
-                    : <span className={styles.heroBadge} style={{background:'rgba(239,68,68,0.1)',color:'var(--danger)',border:'1px solid rgba(239,68,68,0.2)'}}>📄 CV Required</span>
+                      ? <span className={styles.heroBadge} style={{ background: 'rgba(245,158,11,0.12)', color: 'var(--warning)', border: '1px solid rgba(245,158,11,0.3)' }}>⏳ CV Pending</span>
+                      : <span className={styles.heroBadge} style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.2)' }}>📄 CV Required</span>
                   }
                   {student?.enrollmentNo && <span className={styles.heroBadge}>Roll: {student.enrollmentNo}</span>}
                   <span className={styles.heroBadge}>Sem {student?.semester}</span>
                 </div>
               </div>
-            </div>
-            <div className={styles.heroRight}>
+
               <div className={styles.heroStat}><span>{student?.courseName}</span><small>Course</small></div>
-              <div className={styles.heroStatDivider}/>
+              <div className={styles.heroStatDivider} />
               <div className={styles.heroStat}><span>{student?.batch}</span><small>Batch</small></div>
-              <div className={styles.heroStatDivider}/>
+              <div className={styles.heroStatDivider} />
               <div className={styles.heroStat}><span>{student?.skillFacultyName || '—'}</span><small>Faculty</small></div>
             </div>
           </div>
@@ -163,12 +169,12 @@ export default function StudentDashboard() {
 
         {/* Tabs */}
         <div className={styles.tabs}>
-          <button className={`${styles.tab} ${activeTab==='profile'?styles.tabActive:''}`} onClick={() => setActiveTab('profile')}>My CVs</button>
-          <button className={`${styles.tab} ${activeTab==='course'?styles.tabActive:''}`} onClick={() => setActiveTab('course')}>Course Info</button>
-          <button className={`${styles.tab} ${activeTab==='placements'?styles.tabActive:''}`} onClick={() => setActiveTab('placements')}>
+          <button className={`${styles.tab} ${activeTab === 'profile' ? styles.tabActive : ''}`} onClick={() => setActiveTab('profile')}>My CVs</button>
+          <button className={`${styles.tab} ${activeTab === 'course' ? styles.tabActive : ''}`} onClick={() => setActiveTab('course')}>Course Info</button>
+          <button className={`${styles.tab} ${activeTab === 'placements' ? styles.tabActive : ''}`} onClick={() => setActiveTab('placements')}>
             Placements {!isFullyVerified && <span className={styles.lockBadge}>🔒</span>}
           </button>
-          <button className={`${styles.tab} ${activeTab==='account'?styles.tabActive:''}`} onClick={() => setActiveTab('account')}>
+          <button className={`${styles.tab} ${activeTab === 'account' ? styles.tabActive : ''}`} onClick={() => setActiveTab('account')}>
             Account
           </button>
         </div>
@@ -194,7 +200,7 @@ export default function StudentDashboard() {
                 <div className={styles.noCVIcon}>📄</div>
                 <h3>No CVs Yet</h3>
                 <p>Build your first CV to get verified by your coordinator and unlock placement features.</p>
-                <button className={styles.buildNewBtn} style={{margin:'0 auto'}} onClick={() => setBuildingCV('new')}>
+                <button className={styles.buildNewBtn} style={{ margin: '0 auto' }} onClick={() => setBuildingCV('new')}>
                   + Build Your First CV
                 </button>
               </div>
@@ -212,13 +218,13 @@ export default function StudentDashboard() {
 
                       <div className={styles.cvCardTop}>
                         <div className={styles.cvCardTitle}>{cv.title || 'My CV'}</div>
-                        <span className={styles.cvStatusPill} style={{color:sc.color,background:sc.bg,border:`1px solid ${sc.border}`}}>{sc.label}</span>
+                        <span className={styles.cvStatusPill} style={{ color: sc.color, background: sc.bg, border: `1px solid ${sc.border}` }}>{sc.label}</span>
                       </div>
 
                       <div className={styles.cvCardMeta}>
-                        <span>Created: {new Date(cv.createdAt).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</span>
-                        {cv.verifiedAt && <span>Verified: {new Date(cv.verifiedAt).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</span>}
-                        {isPendingCV && cv.submittedAt && <span>Submitted: {new Date(cv.submittedAt).toLocaleDateString('en-IN',{day:'2-digit',month:'short'})}</span>}
+                        <span>Created: {new Date(cv.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                        {cv.verifiedAt && <span>Verified: {new Date(cv.verifiedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>}
+                        {isPendingCV && cv.submittedAt && <span>Submitted: {new Date(cv.submittedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</span>}
                       </div>
 
                       {isRejected && cv.rejectionReason && (
@@ -228,14 +234,14 @@ export default function StudentDashboard() {
                       <div className={styles.cvCardActions}>
                         {/* View/Download — always */}
                         <button className={styles.cvViewBtn} onClick={() => setViewingCV(cv)}>
-                          <svg viewBox="0 0 20 20" fill="currentColor" width="13"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/><path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd"/></svg>
+                          <svg viewBox="0 0 20 20" fill="currentColor" width="13"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" /></svg>
                           View
                         </button>
 
                         {/* Update — always (except pending) */}
                         {!isPendingCV && (
                           <button className={styles.cvEditBtn} onClick={() => setBuildingCV(cv)}>
-                            <svg viewBox="0 0 20 20" fill="currentColor" width="13"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>
+                            <svg viewBox="0 0 20 20" fill="currentColor" width="13"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" /></svg>
                             Update
                           </button>
                         )}
@@ -294,7 +300,7 @@ export default function StudentDashboard() {
               <div className={styles.lockedPlacement}>
                 <div className={styles.lockIcon}>🔒</div>
                 <h3>Placements Locked</h3>
-                <p>{!cvs.length || cvs.every(c=>c.status==='draft') ? 'Build and submit your CV for coordinator verification to unlock placements.' : pendingCV ? 'Your CV is under review. Placements unlock once coordinator verifies.' : 'Your CV needs changes. Update and resubmit to unlock placements.'}</p>
+                <p>{!cvs.length || cvs.every(c => c.status === 'draft') ? 'Build and submit your CV for coordinator verification to unlock placements.' : pendingCV ? 'Your CV is under review. Placements unlock once coordinator verifies.' : 'Your CV needs changes. Update and resubmit to unlock placements.'}</p>
               </div>
             ) : (
               <PlacementSection studentId={student?._id} />
@@ -313,26 +319,26 @@ export default function StudentDashboard() {
 
       {/* CV View Modal */}
       {viewingCV && (
-        <div className={styles.cvViewOverlay} onClick={e=>e.target===e.currentTarget&&setViewingCV(null)}>
+        <div className={styles.cvViewOverlay} onClick={e => e.target === e.currentTarget && setViewingCV(null)}>
           <div className={styles.cvViewModal}>
             <div className={styles.cvViewHeader}>
               <div>
                 <h3>{viewingCV.title || 'My CV'}</h3>
                 {viewingCV.status === 'verified' && <span className={styles.verifiedTag}>✓ Verified</span>}
               </div>
-              <div style={{display:'flex',gap:10}}>
+              <div style={{ display: 'flex', gap: 10 }}>
                 <button className={styles.downloadBtn} onClick={() => window.print()}>⬇ Download PDF</button>
                 <button className={styles.closeBtn} onClick={() => setViewingCV(null)}>✕</button>
               </div>
             </div>
-            <div className={styles.cvViewBody}><CVPreview data={viewingCV}/></div>
+            <div className={styles.cvViewBody}><CVPreview data={viewingCV} /></div>
           </div>
         </div>
       )}
 
       {/* Delete Confirm */}
       {confirmDelete && (
-        <div className={styles.cvViewOverlay} onClick={e=>e.target===e.currentTarget&&setConfirmDelete(null)}>
+        <div className={styles.cvViewOverlay} onClick={e => e.target === e.currentTarget && setConfirmDelete(null)}>
           <div className={styles.confirmBox}>
             <h3>Delete this CV?</h3>
             <p>"{confirmDelete.title || 'My CV'}" will be permanently deleted.</p>
@@ -371,48 +377,48 @@ function ChangePasswordForm() {
   };
 
   const inputStyle = {
-    width:'100%', padding:'10px 13px',
-    background:'var(--bg-secondary)', border:'1px solid var(--border)',
-    borderRadius:'var(--radius-sm)', color:'var(--text-primary)',
-    fontSize:'0.875rem', fontFamily:'var(--font-body)', boxSizing:'border-box',
+    width: '100%', padding: '10px 13px',
+    background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+    borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)',
+    fontSize: '0.875rem', fontFamily: 'var(--font-body)', boxSizing: 'border-box',
   };
-  const labelStyle = { fontSize:'0.75rem', fontWeight:600, color:'var(--text-secondary)', display:'block', marginBottom:5 };
-  const fieldStyle = { display:'flex', flexDirection:'column', marginBottom:14 };
-  const passWrapStyle = { position:'relative', display:'flex' };
-  const eyeStyle = { position:'absolute', right:10, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', fontSize:'0.85rem', opacity:0.6 };
+  const labelStyle = { fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 5 };
+  const fieldStyle = { display: 'flex', flexDirection: 'column', marginBottom: 14 };
+  const passWrapStyle = { position: 'relative', display: 'flex' };
+  const eyeStyle = { position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.85rem', opacity: 0.6 };
 
   return (
-    <div style={{maxWidth:460}}>
-      <div style={{background:'var(--bg-card)',border:'1px solid var(--border)',borderRadius:'var(--radius)',padding:'24px 28px'}}>
-        <div style={{marginBottom:20}}>
-          <h3 style={{fontFamily:'var(--font-display)',fontSize:'1.05rem',fontWeight:700,color:'var(--text-primary)',marginBottom:5}}>Change Password</h3>
-          <p style={{fontSize:'0.8rem',color:'var(--text-muted)'}}>You'll need your current password to set a new one.</p>
+    <div style={{ maxWidth: 460 }}>
+      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '24px 28px' }}>
+        <div style={{ marginBottom: 20 }}>
+          <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 5 }}>Change Password</h3>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>You'll need your current password to set a new one.</p>
         </div>
         <form onSubmit={handleSubmit}>
           <div style={fieldStyle}>
             <label style={labelStyle}>Current Password</label>
             <div style={passWrapStyle}>
-              <input style={{...inputStyle,paddingRight:40}} type={showCurrent?'text':'password'} value={form.currentPassword} onChange={e=>setForm(f=>({...f,currentPassword:e.target.value}))} placeholder="Your current password" required/>
-              <button type="button" style={eyeStyle} onClick={()=>setShowCurrent(p=>!p)}>{showCurrent?'🙈':'👁'}</button>
+              <input style={{ ...inputStyle, paddingRight: 40 }} type={showCurrent ? 'text' : 'password'} value={form.currentPassword} onChange={e => setForm(f => ({ ...f, currentPassword: e.target.value }))} placeholder="Your current password" required />
+              <button type="button" style={eyeStyle} onClick={() => setShowCurrent(p => !p)}>{showCurrent ? '🙈' : '👁'}</button>
             </div>
           </div>
           <div style={fieldStyle}>
-            <label style={labelStyle}>New Password <span style={{color:'var(--text-muted)',fontWeight:400}}>(min 6 characters)</span></label>
+            <label style={labelStyle}>New Password <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(min 6 characters)</span></label>
             <div style={passWrapStyle}>
-              <input style={{...inputStyle,paddingRight:40}} type={showNew?'text':'password'} value={form.newPassword} onChange={e=>setForm(f=>({...f,newPassword:e.target.value}))} placeholder="New password" required/>
-              <button type="button" style={eyeStyle} onClick={()=>setShowNew(p=>!p)}>{showNew?'🙈':'👁'}</button>
+              <input style={{ ...inputStyle, paddingRight: 40 }} type={showNew ? 'text' : 'password'} value={form.newPassword} onChange={e => setForm(f => ({ ...f, newPassword: e.target.value }))} placeholder="New password" required />
+              <button type="button" style={eyeStyle} onClick={() => setShowNew(p => !p)}>{showNew ? '🙈' : '👁'}</button>
             </div>
           </div>
           <div style={fieldStyle}>
             <label style={labelStyle}>Confirm New Password</label>
-            <input style={inputStyle} type="password" value={form.confirmPassword} onChange={e=>setForm(f=>({...f,confirmPassword:e.target.value}))} placeholder="Repeat new password" required/>
-            {form.confirmPassword && form.newPassword !== form.confirmPassword && <span style={{fontSize:'0.7rem',color:'var(--danger)',marginTop:4}}>Passwords don't match</span>}
-            {form.confirmPassword && form.newPassword === form.confirmPassword && form.newPassword.length >= 6 && <span style={{fontSize:'0.7rem',color:'var(--success)',marginTop:4}}>✓ Passwords match</span>}
+            <input style={inputStyle} type="password" value={form.confirmPassword} onChange={e => setForm(f => ({ ...f, confirmPassword: e.target.value }))} placeholder="Repeat new password" required />
+            {form.confirmPassword && form.newPassword !== form.confirmPassword && <span style={{ fontSize: '0.7rem', color: 'var(--danger)', marginTop: 4 }}>Passwords don't match</span>}
+            {form.confirmPassword && form.newPassword === form.confirmPassword && form.newPassword.length >= 6 && <span style={{ fontSize: '0.7rem', color: 'var(--success)', marginTop: 4 }}>✓ Passwords match</span>}
           </div>
           <button
             type="submit"
             disabled={loading}
-            style={{padding:'10px 24px',background:'var(--accent)',border:'none',borderRadius:'var(--radius-sm)',color:'white',fontSize:'0.875rem',fontWeight:700,fontFamily:'var(--font-body)',cursor:'pointer',opacity:loading?0.7:1,transition:'all 0.15s'}}
+            style={{ padding: '10px 24px', background: 'var(--accent)', border: 'none', borderRadius: 'var(--radius-sm)', color: 'white', fontSize: '0.875rem', fontWeight: 700, fontFamily: 'var(--font-body)', cursor: 'pointer', opacity: loading ? 0.7 : 1, transition: 'all 0.15s' }}
           >
             {loading ? 'Changing...' : 'Change Password'}
           </button>
