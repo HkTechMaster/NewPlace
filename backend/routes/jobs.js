@@ -4,9 +4,11 @@ const Job = require('../models/Job');
 const Student = require('../models/Student');
 const CV = require('../models/CV');
 const StudentList = require('../models/StudentList');
+const PlacementOfficer = require('../models/PlacementOfficer');
 const { protect } = require('../middleware/auth');
 const { sendJobReminderEmail } = require('../utils/mailer');
 const { notifyStudents } = require('../utils/notifyStudents');
+const notifyStaff = require('../utils/notifyStaff');
 
 // Helper — get eligible student IDs for a job
 const getEligibleStudents = async (job) => {
@@ -17,20 +19,44 @@ const getEligibleStudents = async (job) => {
     ...(job.eligibleCourses?.length ? { course: { $in: job.eligibleCourses } } : {}),
     ...(job.eligibleBatches?.length ? { batch: { $in: job.eligibleBatches } } : {}),
   });
+
   const studentIds = new Set();
   approvedLists.forEach(l => l.students.forEach(s => studentIds.add(s.student.toString())));
 
   const filter = { _id: { $in: [...studentIds] }, status: 'active' };
   if (job.eligibleSemesters?.length) filter.semester = { $in: job.eligibleSemesters };
+
   let students = await Student.find(filter).lean();
 
   if (job.minCgpa > 0) {
-    const cvs = await CV.find({ student: { $in: students.map(s=>s._id) }, status: 'verified' }).select('student overallCgpa');
+    const cvs = await CV.find({ student: { $in: students.map(s => s._id) }, status: 'verified' }).select('student overallCgpa');
     const cgpaMap = {};
     cvs.forEach(c => { cgpaMap[c.student.toString()] = c.overallCgpa || 0; });
     students = students.filter(s => (cgpaMap[s._id.toString()] || 0) >= job.minCgpa);
   }
+
   return students;
+};
+
+// Helper — notify all POs in this faculty
+const notifyAllPOs = async (facultyId, title, message, type, metadata = {}) => {
+  try {
+    const pos = await PlacementOfficer.find({ skillFaculty: facultyId });
+    for (const po of pos) {
+      await notifyStaff({
+        recipientId:    po._id,
+        recipientModel: 'PlacementOfficer',
+        recipientEmail: po.email,
+        recipientName:  po.name,
+        title,
+        message,
+        type,
+        metadata,
+      });
+    }
+  } catch (err) {
+    console.error('[notifyAllPOs] error:', err.message);
+  }
 };
 
 // GET all jobs
@@ -47,15 +73,17 @@ router.get('/', protect, async (req, res) => {
 router.get('/eligible', protect, async (req, res) => {
   try {
     if (req.user.role !== 'student') return res.status(403).json({ success: false, message: 'Students only' });
+
     const facultyId = req.user.skillFaculty?._id || req.user.skillFaculty;
     const jobs = await Job.find({ skillFaculty: facultyId, isActive: true })
       .populate('eligibleCourses', 'name code').sort({ createdAt: -1 });
 
     const eligible = [];
     for (const job of jobs) {
-      const courseMatch = !job.eligibleCourses?.length || job.eligibleCourses.some(c => c._id.toString() === (req.user.course?._id||req.user.course)?.toString());
-      const batchMatch = !job.eligibleBatches?.length || job.eligibleBatches.includes(req.user.batch);
-      const semMatch = !job.eligibleSemesters?.length || job.eligibleSemesters.includes(req.user.semester);
+      const courseMatch = !job.eligibleCourses?.length || job.eligibleCourses.some(c => c._id.toString() === (req.user.course?._id || req.user.course)?.toString());
+      const batchMatch  = !job.eligibleBatches?.length  || job.eligibleBatches.includes(req.user.batch);
+      const semMatch    = !job.eligibleSemesters?.length || job.eligibleSemesters.includes(req.user.semester);
+
       if (courseMatch && batchMatch && semMatch) {
         const application = job.applications?.find(a => a.student.toString() === req.user._id.toString());
         eligible.push({ ...job.toObject(), alreadyApplied: !!application, applicationStatus: application?.status || null });
@@ -69,10 +97,10 @@ router.get('/eligible', protect, async (req, res) => {
 router.post('/', protect, async (req, res) => {
   try {
     if (req.user.role !== 'placement_officer') return res.status(403).json({ success: false, message: 'PO only' });
+
     const facultyId = req.user.skillFaculty?._id || req.user.skillFaculty;
     const job = await Job.create({ ...req.body, postedBy: req.user._id, skillFaculty: facultyId });
 
-    // Notify eligible students
     const eligible = await getEligibleStudents(job);
     if (eligible.length) {
       await notifyStudents({
@@ -122,74 +150,93 @@ router.get('/:id/eligible-students', protect, async (req, res) => {
 router.get('/:id/applicants', protect, async (req, res) => {
   try {
     if (req.user.role !== 'placement_officer') return res.status(403).json({ success: false, message: 'PO only' });
+
     const job = await Job.findById(req.params.id).populate('eligibleCourses', 'name code');
     if (!job) return res.status(404).json({ success: false, message: 'Job not found' });
 
     const appMap = {};
     job.applications.forEach(a => { appMap[a.student.toString()] = a; });
+
     const studentIds = job.applications.map(a => a.student);
-    const students = await Student.find({ _id: { $in: studentIds } }).populate('course', 'name code').lean();
+    const students   = await Student.find({ _id: { $in: studentIds } }).populate('course', 'name code').lean();
+
     const cvIds = job.applications.filter(a => a.cvId).map(a => a.cvId);
-    const cvs = await CV.find({ _id: { $in: cvIds } }).select('_id title status').lean();
+    const cvs   = await CV.find({ _id: { $in: cvIds } }).select('_id title status').lean();
     const cvMap = {};
     cvs.forEach(c => { cvMap[c._id.toString()] = c; });
 
     const grouped = {};
     for (const s of students) {
-      const courseId = s.course?._id?.toString() || 'unknown';
+      const courseId   = s.course?._id?.toString() || 'unknown';
       const courseName = s.courseName || s.course?.name || 'Unknown';
       const courseCode = s.courseCode || s.course?.code || '';
-      const batch = s.batch || 'Unknown';
+      const batch      = s.batch || 'Unknown';
+
       if (!grouped[courseId]) grouped[courseId] = { courseId, courseName, courseCode, batches: {} };
       if (!grouped[courseId].batches[batch]) grouped[courseId].batches[batch] = [];
+
       const app = appMap[s._id.toString()];
       grouped[courseId].batches[batch].push({
         ...s,
         applicationStatus: app?.status || 'applied',
         appliedAt: app?.appliedAt,
-        consent: app?.consent,
-        addedBy: app?.addedBy,
-        cv: app?.cvId ? cvMap[app.cvId.toString()] : null,
+        consent:   app?.consent,
+        addedBy:   app?.addedBy,
+        cv:   app?.cvId ? cvMap[app.cvId.toString()] : null,
         cvId: app?.cvId || null,
       });
     }
+
     res.json({ success: true, job: { _id: job._id, title: job.title, company: job.company }, totalApplicants: job.applications.length, grouped });
   } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-// POST student applies
+// POST student applies ── triggers PO notification
 router.post('/:id/apply', protect, async (req, res) => {
   try {
     if (req.user.role !== 'student') return res.status(403).json({ success: false, message: 'Students only' });
+
     const { cvId, consent } = req.body;
     if (!consent) return res.status(400).json({ success: false, message: 'Consent required' });
 
     const job = await Job.findById(req.params.id);
     if (!job) return res.status(404).json({ success: false, message: 'Job not found' });
+
     const already = job.applications?.find(a => a.student.toString() === req.user._id.toString());
     if (already) return res.status(400).json({ success: false, message: 'Already applied' });
 
     job.applications.push({ student: req.user._id, cvId: cvId || null, consent: true, addedBy: 'student' });
     await job.save();
 
-    // Confirmation notification
+    // Notify student — application confirmed
     await notifyStudents({
       studentIds: [req.user._id],
-      type: 'application_confirmed',
+      type:  'application_confirmed',
       title: `Application Submitted — ${job.company}`,
       message: `Your application for ${job.title} at ${job.company} has been submitted successfully.\n\nWe will notify you about further updates.`,
       jobId: job._id,
       emailSubject: `Application Confirmed — ${job.title} at ${job.company}`,
     });
 
+    // ── NEW: Notify PO(s) in this faculty
+    const facultyId = job.skillFaculty;
+    await notifyAllPOs(
+      facultyId,
+      `New Application — ${job.title} at ${job.company}`,
+      `${req.user.name} has applied for "${job.title}" at ${job.company}.`,
+      'student_applied',
+      { jobId: job._id, studentId: req.user._id, studentName: req.user.name }
+    );
+
     res.json({ success: true, message: `Applied to ${job.company}!` });
   } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-// DELETE withdraw application
+// DELETE withdraw application ── triggers PO notification
 router.delete('/:id/apply', protect, async (req, res) => {
   try {
     if (req.user.role !== 'student') return res.status(403).json({ success: false, message: 'Students only' });
+
     const job = await Job.findById(req.params.id);
     if (!job) return res.status(404).json({ success: false, message: 'Job not found' });
 
@@ -201,6 +248,17 @@ router.delete('/:id/apply', protect, async (req, res) => {
 
     job.applications.splice(appIdx, 1);
     await job.save();
+
+    // ── NEW: Notify PO(s) in this faculty
+    const facultyId = job.skillFaculty;
+    await notifyAllPOs(
+      facultyId,
+      `Application Withdrawn — ${job.title} at ${job.company}`,
+      `${req.user.name} has withdrawn their application for "${job.title}" at ${job.company}.`,
+      'student_withdrew',
+      { jobId: job._id, studentId: req.user._id, studentName: req.user.name }
+    );
+
     res.json({ success: true, message: `Application withdrawn from ${job.company}` });
   } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
@@ -209,11 +267,14 @@ router.delete('/:id/apply', protect, async (req, res) => {
 router.put('/:id/applicants/:studentId/status', protect, async (req, res) => {
   try {
     if (req.user.role !== 'placement_officer') return res.status(403).json({ success: false, message: 'PO only' });
+
     const { status } = req.body;
     const job = await Job.findById(req.params.id);
     if (!job) return res.status(404).json({ success: false, message: 'Job not found' });
+
     const app = job.applications.find(a => a.student.toString() === req.params.studentId);
     if (!app) return res.status(404).json({ success: false, message: 'Application not found' });
+
     app.status = status;
     await job.save();
     res.json({ success: true, message: 'Status updated' });
@@ -224,11 +285,14 @@ router.put('/:id/applicants/:studentId/status', protect, async (req, res) => {
 router.post('/:id/add-student', protect, async (req, res) => {
   try {
     if (req.user.role !== 'placement_officer') return res.status(403).json({ success: false, message: 'PO only' });
+
     const { studentId } = req.body;
     const job = await Job.findById(req.params.id);
     if (!job) return res.status(404).json({ success: false, message: 'Job not found' });
+
     const already = job.applications?.find(a => a.student.toString() === studentId);
     if (already) return res.status(400).json({ success: false, message: 'Already added' });
+
     job.applications.push({ student: studentId, consent: true, addedBy: 'po' });
     await job.save();
     res.json({ success: true, message: 'Student added' });
@@ -239,10 +303,11 @@ router.post('/:id/add-student', protect, async (req, res) => {
 router.post('/:id/remind', protect, async (req, res) => {
   try {
     if (req.user.role !== 'placement_officer') return res.status(403).json({ success: false, message: 'PO only' });
+
     const job = await Job.findById(req.params.id);
     if (!job) return res.status(404).json({ success: false, message: 'Job not found' });
 
-    const eligible = await getEligibleStudents(job);
+    const eligible   = await getEligibleStudents(job);
     const appliedIds = new Set(job.applications.map(a => a.student.toString()));
     const notApplied = eligible.filter(s => !appliedIds.has(s._id.toString()));
 
@@ -254,6 +319,7 @@ router.post('/:id/remind', protect, async (req, res) => {
         sent++;
       } catch { /* skip */ }
     }
+
     job.reminderSentAt = new Date();
     await job.save();
     res.json({ success: true, message: `Reminder sent to ${sent} students` });

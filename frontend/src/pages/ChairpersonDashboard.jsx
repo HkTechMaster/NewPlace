@@ -6,6 +6,7 @@ import { courseAPI, studentListAPI } from '../utils/api';
 import { CVPreview } from './CVBuilder';
 import axios from 'axios';
 import styles from './ChairpersonDashboard.module.css';
+import StaffNotificationBell from '../components/StaffNotificationBell';
 
 const BLANK_COORD = { name: '', email: '', subject: '' };
 
@@ -153,9 +154,12 @@ export default function ChairpersonDashboard() {
               {user?.departmentCode && <p className={styles.deptTag}>Department: {user.departmentCode}</p>}
             </div>
           </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <StaffNotificationBell />
+          </div>
           <button className={styles.addBtn} onClick={openCreate}>
             <svg viewBox="0 0 20 20" fill="currentColor" width="15">
-              <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd"/>
+              <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
             </svg>
             Add Course
           </button>
@@ -171,13 +175,13 @@ export default function ChairpersonDashboard() {
 
         {/* Tabs */}
         <div className={styles.tabs}>
-          <button className={`${styles.tab} ${activeTab==='courses'?styles.tabActive:''}`} onClick={() => setActiveTab('courses')}>
+          <button className={`${styles.tab} ${activeTab === 'courses' ? styles.tabActive : ''}`} onClick={() => setActiveTab('courses')}>
             Courses ({courses.length})
           </button>
-          <button className={`${styles.tab} ${activeTab==='inbox'?styles.tabActive:''}`} onClick={() => setActiveTab('inbox')}>
+          <button className={`${styles.tab} ${activeTab === 'inbox' ? styles.tabActive : ''}`} onClick={() => setActiveTab('inbox')}>
             Student Lists Inbox
             {Object.values(inboxGrouped).some(g => g.pendingCount > 0) && (
-              <span className={styles.inboxBadge}>{Object.values(inboxGrouped).reduce((a,g)=>a+g.pendingCount,0)}</span>
+              <span className={styles.inboxBadge}>{Object.values(inboxGrouped).reduce((a, g) => a + g.pendingCount, 0)}</span>
             )}
           </button>
         </div>
@@ -194,12 +198,12 @@ export default function ChairpersonDashboard() {
               ) : Object.values(inboxGrouped).map(g => (
                 <button
                   key={g.courseId}
-                  className={`${styles.courseInboxCard} ${selectedCourseId===g.courseId ? styles.courseInboxCardActive : ''}`}
+                  className={`${styles.courseInboxCard} ${selectedCourseId === g.courseId ? styles.courseInboxCardActive : ''}`}
                   onClick={() => { setSelectedCourseId(g.courseId); setSelectedList(null); setSelectedListDetail(null); }}
                 >
                   {g.courseCode && <span className={styles.inboxCourseCode}>{g.courseCode}</span>}
                   <span className={styles.inboxCourseName}>{g.courseName}</span>
-                  <span className={styles.inboxCourseCount}>{g.lists.length} list{g.lists.length!==1?'s':''}</span>
+                  <span className={styles.inboxCourseCount}>{g.lists.length} list{g.lists.length !== 1 ? 's' : ''}</span>
                   {g.pendingCount > 0 && <span className={styles.inboxNotifDot}>{g.pendingCount}</span>}
                 </button>
               ))}
@@ -217,7 +221,7 @@ export default function ChairpersonDashboard() {
               ) : inboxGrouped[selectedCourseId].lists.map(list => (
                 <button
                   key={list._id}
-                  className={`${styles.notifCard} ${selectedList?._id===list._id ? styles.notifCardActive : ''} ${list.status==='pending'?styles.notifPending:''}`}
+                  className={`${styles.notifCard} ${selectedList?._id === list._id ? styles.notifCardActive : ''} ${list.status === 'pending' ? styles.notifPending : ''}`}
                   onClick={async () => {
                     setSelectedList(list);
                     setShowRejectBox(false);
@@ -238,7 +242,7 @@ export default function ChairpersonDashboard() {
                     <span>👥 {list.students?.length} students</span>
                     <span>Batch {list.batch}</span>
                   </div>
-                  <div className={styles.notifDate}>{new Date(list.sentAt).toLocaleDateString('en-IN',{day:'2-digit',month:'short'})}</div>
+                  <div className={styles.notifDate}>{new Date(list.sentAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</div>
                 </button>
               ))}
             </div>
@@ -246,7 +250,7 @@ export default function ChairpersonDashboard() {
             {/* Column 3 — Inbox detail */}
             <div className={styles.inboxCol3}>
               {!selectedList ? (
-                <div className={styles.inboxEmpty} style={{marginTop:40}}>← Select a list to review</div>
+                <div className={styles.inboxEmpty} style={{ marginTop: 40 }}>← Select a list to review</div>
               ) : !selectedListDetail ? (
                 <div className={styles.inboxEmpty}>Loading...</div>
               ) : (
@@ -264,10 +268,10 @@ export default function ChairpersonDashboard() {
 
                   {/* Status */}
                   {selectedListDetail.status === 'approved' && (
-                    <div className={styles.inboxStatusBar} style={{background:'rgba(16,185,129,0.08)',border:'1px solid rgba(16,185,129,0.25)',color:'var(--success)'}}>✓ Approved</div>
+                    <div className={styles.inboxStatusBar} style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)', color: 'var(--success)' }}>✓ Approved</div>
                   )}
                   {selectedListDetail.status === 'rejected' && (
-                    <div className={styles.inboxStatusBar} style={{background:'rgba(239,68,68,0.07)',border:'1px solid rgba(239,68,68,0.2)',color:'var(--danger)'}}>✗ Rejected — "{selectedListDetail.rejectionReason}"</div>
+                    <div className={styles.inboxStatusBar} style={{ background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.2)', color: 'var(--danger)' }}>✗ Rejected — "{selectedListDetail.rejectionReason}"</div>
                   )}
 
                   {/* Students table */}
@@ -276,7 +280,7 @@ export default function ChairpersonDashboard() {
                     {selectedListDetail.students?.map((s, i) => (
                       <div key={i} className={styles.inboxStudentRow}>
                         <div className={styles.inboxStudentInfo}>
-                          {s.photo ? <img src={s.photo} alt="" className={styles.inboxStudentPhoto}/> : <div className={styles.inboxStudentFallback}>{s.name?.charAt(0)}</div>}
+                          {s.photo ? <img src={s.photo} alt="" className={styles.inboxStudentPhoto} /> : <div className={styles.inboxStudentFallback}>{s.name?.charAt(0)}</div>}
                           <div>
                             <div className={styles.inboxStudentName}>{s.name}</div>
                             <div className={styles.inboxStudentEmail}>{s.email}</div>
@@ -319,7 +323,7 @@ export default function ChairpersonDashboard() {
                             placeholder="Reason for rejection (required)..."
                             rows={3}
                           />
-                          <div style={{display:'flex',gap:10,marginTop:10}}>
+                          <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
                             <button className={styles.cancelBtn} onClick={() => setShowRejectBox(false)}>Cancel</button>
                             <button className={styles.dangerBtn} disabled={!rejectReason.trim() || actionLoading} onClick={async () => {
                               setActionLoading(true);
@@ -357,104 +361,104 @@ export default function ChairpersonDashboard() {
 
         {/* ── COURSES TAB ── */}
         {activeTab === 'courses' && (<>
-        {/* Courses */}
-        {loading ? (
-          <div className={styles.loading}><span className="spinner" style={{width:28,height:28}} /><span>Loading courses...</span></div>
-        ) : courses.length === 0 ? (
-          <div className={styles.empty}>
-            <div className={styles.emptyIcon}>📚</div>
-            <h3>No Courses Yet</h3>
-            <p>Add your first course with duration, batches, and coordinator details.</p>
-            <button className={styles.addBtn} onClick={openCreate}>Create First Course</button>
-          </div>
-        ) : (
-          <div className={styles.courseGrid}>
-            {courses.map((course, i) => (
-              <div key={course._id} className={styles.courseCard} style={{animationDelay:`${i*0.05}s`}}>
-                <div className={styles.courseTop}>
-                  <div className={styles.courseMeta}>
-                    {course.code && <span className={styles.courseCode}>{course.code}</span>}
-                    <span className={`${styles.courseType} ${styles[course.type]}`}>{TYPE_LABELS[course.type]}</span>
+          {/* Courses */}
+          {loading ? (
+            <div className={styles.loading}><span className="spinner" style={{ width: 28, height: 28 }} /><span>Loading courses...</span></div>
+          ) : courses.length === 0 ? (
+            <div className={styles.empty}>
+              <div className={styles.emptyIcon}>📚</div>
+              <h3>No Courses Yet</h3>
+              <p>Add your first course with duration, batches, and coordinator details.</p>
+              <button className={styles.addBtn} onClick={openCreate}>Create First Course</button>
+            </div>
+          ) : (
+            <div className={styles.courseGrid}>
+              {courses.map((course, i) => (
+                <div key={course._id} className={styles.courseCard} style={{ animationDelay: `${i * 0.05}s` }}>
+                  <div className={styles.courseTop}>
+                    <div className={styles.courseMeta}>
+                      {course.code && <span className={styles.courseCode}>{course.code}</span>}
+                      <span className={`${styles.courseType} ${styles[course.type]}`}>{TYPE_LABELS[course.type]}</span>
+                    </div>
+                    <div className={styles.courseActions}>
+                      <button className={styles.editBtn} onClick={() => openEdit(course)}>
+                        <svg viewBox="0 0 20 20" fill="currentColor" width="13"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" /></svg>
+                      </button>
+                      <button className={styles.deleteBtn} onClick={() => setDeleteConfirm(course)}>
+                        <svg viewBox="0 0 20 20" fill="currentColor" width="13"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+                      </button>
+                    </div>
                   </div>
-                  <div className={styles.courseActions}>
-                    <button className={styles.editBtn} onClick={() => openEdit(course)}>
-                      <svg viewBox="0 0 20 20" fill="currentColor" width="13"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>
-                    </button>
-                    <button className={styles.deleteBtn} onClick={() => setDeleteConfirm(course)}>
-                      <svg viewBox="0 0 20 20" fill="currentColor" width="13"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd"/></svg>
-                    </button>
-                  </div>
-                </div>
 
-                <h3 className={styles.courseName}>{course.name}</h3>
-                {course.description && <p className={styles.courseDesc}>{course.description}</p>}
+                  <h3 className={styles.courseName}>{course.name}</h3>
+                  {course.description && <p className={styles.courseDesc}>{course.description}</p>}
 
-                {/* Course details grid */}
-                <div className={styles.detailsGrid}>
-                  <div className={styles.detail}>
-                    <span className={styles.detailLabel}>Duration</span>
-                    <span className={styles.detailVal}>{course.duration?.label || `${course.duration?.years}Y`}</span>
+                  {/* Course details grid */}
+                  <div className={styles.detailsGrid}>
+                    <div className={styles.detail}>
+                      <span className={styles.detailLabel}>Duration</span>
+                      <span className={styles.detailVal}>{course.duration?.label || `${course.duration?.years}Y`}</span>
+                    </div>
+                    <div className={styles.detail}>
+                      <span className={styles.detailLabel}>Batches</span>
+                      <span className={styles.detailVal}>{course.totalBatches}</span>
+                    </div>
+                    <div className={styles.detail}>
+                      <span className={styles.detailLabel}>Current Batch</span>
+                      <span className={styles.detailVal}>{course.currentBatch || '—'}</span>
+                    </div>
+                    <div className={styles.detail}>
+                      <span className={styles.detailLabel}>Seats</span>
+                      <span className={styles.detailVal}>{course.totalSeats || '—'}</span>
+                    </div>
                   </div>
-                  <div className={styles.detail}>
-                    <span className={styles.detailLabel}>Batches</span>
-                    <span className={styles.detailVal}>{course.totalBatches}</span>
-                  </div>
-                  <div className={styles.detail}>
-                    <span className={styles.detailLabel}>Current Batch</span>
-                    <span className={styles.detailVal}>{course.currentBatch || '—'}</span>
-                  </div>
-                  <div className={styles.detail}>
-                    <span className={styles.detailLabel}>Seats</span>
-                    <span className={styles.detailVal}>{course.totalSeats || '—'}</span>
-                  </div>
-                </div>
 
-                {/* Coordinators toggle */}
-                {course.coordinators?.length > 0 && (
-                  <div className={styles.coordSection}>
-                    <button
-                      className={styles.coordToggle}
-                      onClick={() => setExpandedCourse(expandedCourse === course._id ? null : course._id)}
-                    >
-                      <svg viewBox="0 0 20 20" fill="currentColor" width="12"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"/></svg>
-                      {course.coordinators.length} Coordinator{course.coordinators.length !== 1 ? 's' : ''}
-                      <svg viewBox="0 0 20 20" fill="currentColor" width="12" style={{transform: expandedCourse === course._id ? 'rotate(180deg)' : 'none', transition:'transform 0.2s'}}><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd"/></svg>
-                    </button>
-                    {expandedCourse === course._id && (
-                      <div className={styles.coordList}>
-                        {course.coordinators.map((c, i) => (
-                          <div key={i} className={styles.coordItem}>
-                            <div className={styles.coordAvatar}>{(c.name || 'C').charAt(0)}</div>
-                            <div>
-                              <div className={styles.coordName}>{c.name}</div>
-                              <div className={styles.coordEmail}>{c.email}</div>
-                              {c.subject && <div className={styles.coordSubject}>{c.subject}</div>}
+                  {/* Coordinators toggle */}
+                  {course.coordinators?.length > 0 && (
+                    <div className={styles.coordSection}>
+                      <button
+                        className={styles.coordToggle}
+                        onClick={() => setExpandedCourse(expandedCourse === course._id ? null : course._id)}
+                      >
+                        <svg viewBox="0 0 20 20" fill="currentColor" width="12"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg>
+                        {course.coordinators.length} Coordinator{course.coordinators.length !== 1 ? 's' : ''}
+                        <svg viewBox="0 0 20 20" fill="currentColor" width="12" style={{ transform: expandedCourse === course._id ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
+                      </button>
+                      {expandedCourse === course._id && (
+                        <div className={styles.coordList}>
+                          {course.coordinators.map((c, i) => (
+                            <div key={i} className={styles.coordItem}>
+                              <div className={styles.coordAvatar}>{(c.name || 'C').charAt(0)}</div>
+                              <div>
+                                <div className={styles.coordName}>{c.name}</div>
+                                <div className={styles.coordEmail}>{c.email}</div>
+                                {c.subject && <div className={styles.coordSubject}>{c.subject}</div>}
+                              </div>
                             </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </>)}
       </main>
 
       {/* ── CV View Modal (for chairperson viewing student CVs) ── */}
       {viewingCV && (
-        <div className={styles.overlay} onClick={e => e.target===e.currentTarget && setViewingCV(null)}>
-          <div className={styles.modal} style={{maxWidth:760}}>
+        <div className={styles.overlay} onClick={e => e.target === e.currentTarget && setViewingCV(null)}>
+          <div className={styles.modal} style={{ maxWidth: 760 }}>
             <div className={styles.modalHeader}>
               <h2 className={styles.modalTitle}>Student CV</h2>
               <button className={styles.closeBtn} onClick={() => setViewingCV(null)}>
-                <svg viewBox="0 0 20 20" fill="currentColor" width="17"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/></svg>
+                <svg viewBox="0 0 20 20" fill="currentColor" width="17"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
               </button>
             </div>
-            <div style={{overflow:'auto',padding:'20px 24px',maxHeight:'72vh'}}>
-              <CVPreview data={viewingCV}/>
+            <div style={{ overflow: 'auto', padding: '20px 24px', maxHeight: '72vh' }}>
+              <CVPreview data={viewingCV} />
             </div>
           </div>
         </div>
@@ -470,7 +474,7 @@ export default function ChairpersonDashboard() {
                 <p className={styles.modalSub}>Fill in course details — these will appear in student registration dropdowns</p>
               </div>
               <button className={styles.closeBtn} onClick={() => setShowModal(false)}>
-                <svg viewBox="0 0 20 20" fill="currentColor" width="17"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/></svg>
+                <svg viewBox="0 0 20 20" fill="currentColor" width="17"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
               </button>
             </div>
 
@@ -478,7 +482,7 @@ export default function ChairpersonDashboard() {
 
               {/* Course Info */}
               <div className={styles.section}>
-                <div className={styles.sectionTitle}><span className={styles.dot}/> Course Information</div>
+                <div className={styles.sectionTitle}><span className={styles.dot} /> Course Information</div>
                 <div className={styles.row2}>
                   <div className={styles.field}>
                     <label className={styles.label}>Course Name *</label>
@@ -512,7 +516,7 @@ export default function ChairpersonDashboard() {
 
               {/* Batch Info */}
               <div className={styles.section}>
-                <div className={styles.sectionTitle}><span className={styles.dot} style={{background:'var(--gold)'}}/> Batch Information</div>
+                <div className={styles.sectionTitle}><span className={styles.dot} style={{ background: 'var(--gold)' }} /> Batch Information</div>
                 <div className={styles.row3}>
                   <div className={styles.field}>
                     <label className={styles.label}>Duration (Years)</label>
@@ -535,24 +539,24 @@ export default function ChairpersonDashboard() {
 
               {/* Coordinators */}
               <div className={styles.section}>
-                <div className={styles.sectionTitle}><span className={styles.dot} style={{background:'var(--success)'}}/> Coordinators <span className={styles.countBadge}>{form.coordinators.length}</span></div>
+                <div className={styles.sectionTitle}><span className={styles.dot} style={{ background: 'var(--success)' }} /> Coordinators <span className={styles.countBadge}>{form.coordinators.length}</span></div>
                 <div className={styles.coordNotice}>
-                  <svg viewBox="0 0 20 20" fill="currentColor" width="12"><path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd"/></svg>
+                  <svg viewBox="0 0 20 20" fill="currentColor" width="12"><path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" /></svg>
                   Coordinators will be registered and can login with Google using their email.
                 </div>
                 <div className={styles.coordAddBox}>
                   <div className={styles.row3}>
                     <div className={styles.field}>
                       <label className={styles.label}>Name</label>
-                      <input className={styles.input} value={coordForm.name} onChange={e => setCoordForm(f => ({...f, name: e.target.value}))} placeholder="Coordinator name" />
+                      <input className={styles.input} value={coordForm.name} onChange={e => setCoordForm(f => ({ ...f, name: e.target.value }))} placeholder="Coordinator name" />
                     </div>
                     <div className={styles.field}>
                       <label className={styles.label}>Email</label>
-                      <input className={styles.input} type="email" value={coordForm.email} onChange={e => setCoordForm(f => ({...f, email: e.target.value}))} placeholder="coordinator@edu" />
+                      <input className={styles.input} type="email" value={coordForm.email} onChange={e => setCoordForm(f => ({ ...f, email: e.target.value }))} placeholder="coordinator@edu" />
                     </div>
                     <div className={styles.field}>
                       <label className={styles.label}>Subject / Role</label>
-                      <input className={styles.input} value={coordForm.subject} onChange={e => setCoordForm(f => ({...f, subject: e.target.value}))} placeholder="e.g. Placement Coordinator" />
+                      <input className={styles.input} value={coordForm.subject} onChange={e => setCoordForm(f => ({ ...f, subject: e.target.value }))} placeholder="e.g. Placement Coordinator" />
                     </div>
                   </div>
                   <button type="button" className={styles.addCoordBtn} onClick={addCoord} disabled={!coordForm.name.trim() && !coordForm.email.trim()}>
@@ -563,7 +567,7 @@ export default function ChairpersonDashboard() {
                   <div className={styles.coordAdded}>
                     {form.coordinators.map((c, i) => (
                       <div key={i} className={styles.coordTag}>
-                        <div className={styles.coordTagAvatar}>{(c.name||'C').charAt(0)}</div>
+                        <div className={styles.coordTagAvatar}>{(c.name || 'C').charAt(0)}</div>
                         <div className={styles.coordTagInfo}>
                           <div className={styles.coordTagName}>{c.name}</div>
                           <div className={styles.coordTagEmail}>{c.email}</div>
@@ -579,7 +583,7 @@ export default function ChairpersonDashboard() {
               <div className={styles.modalActions}>
                 <button type="button" className={styles.cancelBtn} onClick={() => setShowModal(false)}>Cancel</button>
                 <button type="submit" className={styles.submitBtn} disabled={submitLoading}>
-                  {submitLoading ? <><span className="spinner" style={{width:15,height:15}}/> Saving...</> : editCourse ? 'Update Course' : 'Create Course'}
+                  {submitLoading ? <><span className="spinner" style={{ width: 15, height: 15 }} /> Saving...</> : editCourse ? 'Update Course' : 'Create Course'}
                 </button>
               </div>
             </form>

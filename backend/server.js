@@ -1,14 +1,16 @@
 require('dotenv').config();
 const express = require('express');
-const cors = require('cors');
-const path = require('path');
+const cors    = require('cors');
+const path    = require('path');
 const connectDB = require('./config/db');
 
 const app = express();
+
 connectDB().then(async () => {
-  const User = require('./models/User');
+  const User   = require('./models/User');
   const emails = (process.env.SUPER_ADMIN_EMAILS || process.env.SUPER_ADMIN_EMAIL || '')
-    .split(',').map(e=>e.trim().toLowerCase()).filter(Boolean);
+    .split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+
   for (const email of emails) {
     const exists = await User.findOne({ email });
     if (!exists) {
@@ -24,18 +26,20 @@ app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', message: 'PlacePro API running' }));
 
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/student-auth', require('./routes/studentAuth'));
-app.use('/api/skill-faculties', require('./routes/skillFaculties'));
-app.use('/api/departments', require('./routes/departments'));
-app.use('/api/courses', require('./routes/courses'));
-app.use('/api/users', require('./routes/users'));
-app.use('/api/students', require('./routes/students'));
-app.use('/api/cv', require('./routes/cv'));
-app.use('/api/student-lists', require('./routes/studentLists'));
-app.use('/api/jobs', require('./routes/jobs'));
-app.use('/api/drives', require('./routes/drives'));
-app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/auth',               require('./routes/auth'));
+app.use('/api/student-auth',       require('./routes/studentAuth'));
+app.use('/api/skill-faculties',    require('./routes/skillFaculties'));
+app.use('/api/departments',        require('./routes/departments'));
+app.use('/api/courses',            require('./routes/courses'));
+app.use('/api/users',              require('./routes/users'));
+app.use('/api/students',           require('./routes/students'));
+app.use('/api/cv',                 require('./routes/cv'));
+app.use('/api/student-lists',      require('./routes/studentLists'));
+app.use('/api/jobs',               require('./routes/jobs'));
+app.use('/api/drives',             require('./routes/drives'));
+app.use('/api/notifications',      require('./routes/notifications'));
+// ── NEW: Staff notifications (PO + Chairperson bell)
+app.use('/api/staff-notifications', require('./routes/staffNotifications'));
 
 // Serve frontend
 const frontendPath = path.join(__dirname, '../frontend/dist');

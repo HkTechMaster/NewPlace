@@ -29,6 +29,15 @@ export const courseAPI = {
   delete: (id) => axios.delete(`/courses/${id}`),
 };
 
+// Staff Notifications (PO + Chairperson)
+export const getStaffNotifications   = ()      => api.get('/staff-notifications');
+export const markStaffNotifRead      = (id)    => api.patch(`/staff-notifications/${id}/read`);
+export const markAllStaffNotifsRead  = ()      => api.patch('/staff-notifications/mark-all-read');
+export const deleteStaffNotif        = (id)    => api.delete(`/staff-notifications/${id}`);
+export const getChairpersonsForPO    = ()      => api.get('/staff-notifications/chairpersons');
+export const sendPOMessage           = (chairpersonId, message) =>
+  api.post('/staff-notifications/po-message', { chairpersonId, message });
+
 export const studentAPI = {
   getPending: () => axios.get('/students/pending'),
   getAll: () => axios.get('/students'),
