@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
-import styles from './NotificationBell.module.css'; // reuse exact same CSS
+import styles from './NotificationBell.module.css';
 
 const TYPE_ICONS = {
   student_applied:  '📥',
@@ -47,7 +47,9 @@ export default function StaffNotificationBell() {
 
   const fetchNotifications = async () => {
     try {
-      const res = await axios.get('/api/staff-notifications');
+      // Use same URL pattern as NotificationBell.jsx — no /api/ prefix
+      // Your axios instance baseURL already includes /api/
+      const res = await axios.get('/staff-notifications');
       setNotifications(res.data.notifications || []);
       setUnreadCount(res.data.unreadCount || 0);
     } catch { /* silent */ }
@@ -56,7 +58,7 @@ export default function StaffNotificationBell() {
   const handleOpen = (notif) => {
     setSelectedNotif(notif);
     if (!notif.isRead) {
-      axios.patch(`/api/staff-notifications/${notif._id}/read`)
+      axios.patch(`/staff-notifications/${notif._id}/read`)
         .then(() => {
           setNotifications(prev => prev.map(n => n._id === notif._id ? { ...n, isRead: true } : n));
           setUnreadCount(prev => Math.max(0, prev - 1));
@@ -68,7 +70,7 @@ export default function StaffNotificationBell() {
   const handleDelete = async (e, id) => {
     e.stopPropagation();
     try {
-      await axios.delete(`/api/staff-notifications/${id}`);
+      await axios.delete(`/staff-notifications/${id}`);
       setNotifications(prev => {
         const deleted = prev.find(n => n._id === id);
         if (deleted && !deleted.isRead) setUnreadCount(p => Math.max(0, p - 1));
@@ -81,7 +83,7 @@ export default function StaffNotificationBell() {
 
   const handleMarkAllRead = async () => {
     try {
-      await axios.patch('/api/staff-notifications/mark-all-read');
+      await axios.patch('/staff-notifications/mark-all-read');
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
       setUnreadCount(0);
     } catch { toast.error('Failed'); }
@@ -120,7 +122,6 @@ export default function StaffNotificationBell() {
               <div className={styles.empty}>No notifications yet</div>
             )}
 
-            {/* Unread Section */}
             {unread.length > 0 && (
               <>
                 <div className={styles.sectionLabel}>Unread</div>
@@ -140,10 +141,9 @@ export default function StaffNotificationBell() {
               </>
             )}
 
-            {/* Read Section */}
             {read.length > 0 && (
               <>
-                <div className={styles.sectionLabel}>Read</div>
+                <div className={styles.sectionLabel}>Earlier</div>
                 {read.map(n => (
                   <div key={n._id} className={`${styles.notifItem} ${styles.readItem}`} onClick={() => handleOpen(n)}>
                     <div className={styles.notifIcon} style={{ opacity: 0.6 }}>{TYPE_ICONS[n.type] || '🔔'}</div>
